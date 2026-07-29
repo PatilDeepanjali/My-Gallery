@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="blue_100">#FF278BE3</color>
+    <color name="blue_40">#66278BE3</color>
+    <color name="blue_30">#4D278BE3</color>
+    <color name="blue_20">#33278BE3</color>
+    <color name="blue_10">#1A278BE3</color>
+
+    <color name="background">#FFFFFFFF</color>
+    <color name="onBackground">#1A1A1A</color>
+    <color name="onSurfaceVariant">#757575</color>
+    <color name="surfaceVariant">#F0F0F0</color>
+</resources>

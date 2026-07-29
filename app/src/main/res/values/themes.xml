@@ -1,0 +1,16 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme. -->
+    <style name="Base.Theme.MyGallery" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Customize your light theme here. -->
+        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+
+        <item name="colorPrimary">@color/blue_100</item>
+        <item name="colorPrimaryVariant">@color/blue_40</item>
+        <item name="colorSurfaceVariant">@color/blue_20</item>
+<!--        <item name="colorSurfaceTint">@color/blue_10</item>-->
+
+
+    </style>
+
+    <style name="Theme.MyGallery" parent="Base.Theme.MyGallery" />
+</resources>

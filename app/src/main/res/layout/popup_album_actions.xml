@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="180dp"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/bg_popup_menu"
+    android:paddingVertical="6dp"
+    android:elevation="8dp">
+
+    <include layout="@layout/item_popup_action"
+        android:id="@+id/action_pin" />
+
+</LinearLayout>
