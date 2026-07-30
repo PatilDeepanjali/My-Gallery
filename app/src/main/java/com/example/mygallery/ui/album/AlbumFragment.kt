@@ -21,6 +21,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.example.mygallery.adapter.GalleryAdapter
 import com.example.mygallery.databinding.DialogCreateAlbumBinding
 import com.example.mygallery.databinding.FragmentAlbumBinding
@@ -79,6 +80,8 @@ class AlbumFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        binding.fabScrollTop.hide()
+
         // Default RecyclerView Layout
         binding.recyclerAlbums.layoutManager =
             GridLayoutManager(requireContext(), 3)
@@ -99,8 +102,6 @@ class AlbumFragment : Fragment() {
         // Request permission and load albums
         checkPermission()
 
-        // Permission-denied screen's retry button: simply re-run the same
-        // permission check/request flow used on first launch.
         binding.btnGrantAccess.setOnClickListener {
             checkPermission()
         }
@@ -199,13 +200,36 @@ class AlbumFragment : Fragment() {
                 }
             }
         }
+
+        binding.recyclerAlbums.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+
+            override fun onScrolled(
+                recyclerView: RecyclerView,
+                dx: Int,
+                dy: Int
+            ) {
+                super.onScrolled(recyclerView, dx, dy)
+
+                if (!::galleryAdapter.isInitialized) return
+
+                if (recyclerView.canScrollVertically(-1)) {
+                    binding.fabScrollTop.show()
+                } else {
+                    binding.fabScrollTop.hide()
+                }
+            }
+        })
+
+        binding.fabScrollTop.setOnClickListener {
+
+            binding.recyclerAlbums.smoothScrollToPosition(0)
+
+        }
     }
 
     private fun renderState(state: GalleryUiState) {
 
-        // Hide all four possible views first, then show only the one
-        // that matches the current state. This avoids repeating
-        // "set the other three to GONE" in every single branch below.
+
         binding.progressBar.visibility = View.GONE
         binding.layoutEmptyState.visibility = View.GONE
         binding.layoutPermissionDenied.visibility = View.GONE
