@@ -2,4 +2,17 @@
     <string name="app_name">My Gallery</string>
     <!-- TODO: Remove or change this placeholder text -->
     <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="no_albums">No Albums</string>
+    <string name="no_albums_illustration">Illustration shown when no albums are found</string>
+
+    <string name="permission_needed_title">Permission Needed</string>
+    <string name="permission_needed_message">MyGallery needs access to your photos to show your albums.</string>
+    <string name="permission_needed_illustration">Illustration shown when permission is denied</string>
+    <string name="grant_access">Grant Access</string>
+
+    <string name="back">Back</string>
+    <string name="more_options">More options</string>
+    <string name="photo_thumbnail">Photo thumbnail</string>
+    <string name="no_photos">No Photos or Videos</string>
+    <string name="no_photos_illustration">Illustration shown when album has no photos</string>
 </resources>

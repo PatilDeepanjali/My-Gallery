@@ -86,6 +86,7 @@
                 android:src="@drawable/ic_search" />
 
             <EditText
+                android:id="@+id/searchAlbums"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
@@ -177,19 +178,114 @@
         android:paddingStart="12dp"
         android:paddingEnd="12dp"
         android:paddingBottom="16dp"
+        android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/pinnedBanner" />
 
+    <!-- Loading state: shown while MediaStore query is running -->
+    <ProgressBar
+        android:id="@+id/progressBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/pinnedBanner"
+        tools:visibility="visible" />
+
+    <!-- Empty state: shown when no albums are found -->
+    <LinearLayout
+        android:id="@+id/layoutEmptyState"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/pinnedBanner"
+        tools:visibility="visible">
+
+        <ImageView
+            android:layout_width="140dp"
+            android:layout_height="140dp"
+            android:src="@drawable/ic_no_albums"
+            android:contentDescription="@string/no_albums_illustration" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/no_albums"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="@color/onBackground" />
+
+    </LinearLayout>
+
+    <!-- Permission denied state: shown when storage/media permission is denied -->
+    <LinearLayout
+        android:id="@+id/layoutPermissionDenied"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:paddingHorizontal="32dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/pinnedBanner"
+        tools:visibility="gone">
+
+        <ImageView
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:src="@drawable/ic_no_albums"
+            android:contentDescription="@string/permission_needed_illustration" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/permission_needed_title"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="@color/onBackground"
+            android:gravity="center" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/permission_needed_message"
+            android:textSize="13sp"
+            android:textColor="@color/onSurfaceVariant"
+            android:gravity="center" />
+
+        <Button
+            android:id="@+id/btnGrantAccess"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/grant_access" />
+
+    </LinearLayout>
+
     <!-- Scroll To Top FAB -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fabScrollTop"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
         android:layout_margin="16dp"
         android:src="@drawable/ic_arrow"
+        android:backgroundTint="@color/background"
         app:fabSize="mini"
+        app:shapeAppearance="@drawable/bg_circle_white"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />

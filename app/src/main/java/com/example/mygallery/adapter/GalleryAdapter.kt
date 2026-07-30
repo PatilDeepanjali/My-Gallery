@@ -4,55 +4,121 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
-import com.example.mygallery.databinding.ItemAlbumBinding
+import com.example.mygallery.databinding.ItemAlbumGridBinding
+import com.example.mygallery.databinding.ItemAlbumListBinding
 import com.example.mygallery.model.GalleryFolder
-import java.io.File
 
-class GalleryAdapter(val folderList: ArrayList<GalleryFolder>) :
-    RecyclerView.Adapter<GalleryAdapter.GalleryViewHoder>() {
+class GalleryAdapter(
+    private var isGridView: Boolean,
+    private val folderList: MutableList<GalleryFolder>,
+    private val onFolderClick: (GalleryFolder) -> Unit
+) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+
+    companion object {
+        private const val GRID = 0
+        private const val LIST = 1
+    }
+
+
+
+    override fun getItemViewType(position: Int): Int {
+        return if (isGridView) GRID else LIST
+    }
+
     override fun onCreateViewHolder(
         parent: ViewGroup,
         viewType: Int
-    ): GalleryViewHoder {
-        var binding: ItemAlbumBinding =
-            ItemAlbumBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+    ): RecyclerView.ViewHolder {
 
-        return GalleryViewHoder(binding)
+        return if (viewType == GRID) {
+
+            val binding = ItemAlbumGridBinding.inflate(
+                LayoutInflater.from(parent.context),
+                parent,
+                false
+            )
+
+            GridViewHolder(binding)
+
+        } else {
+
+            val binding = ItemAlbumListBinding.inflate(
+                LayoutInflater.from(parent.context),
+                parent,
+                false
+            )
+
+            ListViewHolder(binding)
+        }
     }
 
     override fun onBindViewHolder(
-        holder: GalleryViewHoder,
+        holder: RecyclerView.ViewHolder,
         position: Int
     ) {
 
         val folder = folderList[position]
 
-        var coverImage = folder.imageList[0]
 
-        holder.binding.tvAlbumName.text = folder.folderName
-        holder.binding.tvAlbumMeta.text = folder.imageCount.toString()
-        holder.binding.imgAlbum
+        if (folder.imageList.isEmpty()) return
 
-        if(folder.imageList.isNotEmpty())
-        {
-            Glide.with(holder.itemView.context)
-                .load(coverImage.uri)
-                .centerCrop()
-                .into(holder.binding.imgAlbum)
+        val coverImage = folder.imageList[0]
 
+        holder.itemView.setOnClickListener {
+            onFolderClick(folder)
         }
 
+
+        when (holder) {
+
+            is GridViewHolder -> {
+
+                holder.binding.tvAlbumName.text = folder.folderName
+                holder.binding.tvAlbumMeta.text = "${folder.imageCount} Items"
+
+                Glide.with(holder.itemView.context)
+                    .load(coverImage.uri)
+                    .centerCrop()
+                    .into(holder.binding.imgAlbum)
+            }
+
+            is ListViewHolder -> {
+
+                holder.binding.tvAlbumName.text = folder.folderName
+                holder.binding.tvAlbumMeta.text = "${folder.imageCount} Items"
+
+                Glide.with(holder.itemView.context)
+                    .load(coverImage.uri)
+                    .centerCrop()
+                    .into(holder.binding.imgAlbum)
+            }
+        }
+    }
+
+
+    fun updateList(newList: List<GalleryFolder>) {
+
+        folderList.clear()
+        folderList.addAll(newList)
+        notifyDataSetChanged()
 
     }
 
     override fun getItemCount(): Int {
-
         return folderList.size
-
     }
 
-    class GalleryViewHoder(val binding: ItemAlbumBinding) : RecyclerView.ViewHolder(binding.root) {
-
-
+    fun setViewMode(isGrid: Boolean) {
+        isGridView = isGrid
+        notifyDataSetChanged()
     }
+
+
+    class GridViewHolder(
+        val binding: ItemAlbumGridBinding
+    ) : RecyclerView.ViewHolder(binding.root)
+
+    class ListViewHolder(
+        val binding: ItemAlbumListBinding
+    ) : RecyclerView.ViewHolder(binding.root)
 }

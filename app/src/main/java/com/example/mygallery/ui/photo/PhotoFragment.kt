@@ -1,60 +1,142 @@
-package com.example.mygallery.ui.photo
+package com.example.mygallery.ui.photos
 
 import android.os.Bundle
-import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import com.example.mygallery.R
+import androidx.fragment.app.Fragment
+import androidx.lifecycle.ViewModelProvider
+import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.LinearLayoutManager
+import com.example.mygallery.adapter.PhotosAdapter
+import com.example.mygallery.databinding.FragmentPhotoBinding
+import com.example.mygallery.repository.GalleryRepository
+import com.example.mygallery.ui.state.PhotosUiState
+import com.example.mygallery.viewmodel.PhotosViewModel
+import com.example.mygallery.viewmodel.PhotosViewModelFactory
 
-// TODO: Rename parameter arguments, choose names that match
-// the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
-private const val ARG_PARAM1 = "param1"
-private const val ARG_PARAM2 = "param2"
 
-/**
- * A simple [Fragment] subclass.
- * Use the [PhotoFragment.newInstance] factory method to
- * create an instance of this fragment.
- */
 class PhotoFragment : Fragment() {
-    // TODO: Rename and change types of parameters
-    private var param1: String? = null
-    private var param2: String? = null
+
+    companion object {
+        const val ARG_FOLDER_NAME = "arg_folder_name"
+    }
+
+    private lateinit var binding: FragmentPhotoBinding
+    private lateinit var viewModel: PhotosViewModel
+    private lateinit var photosAdapter: PhotosAdapter
+
+    private var folderName: String? = null
+    private var isGridView = true
+
+    private val gridSpanCount = 3
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        arguments?.let {
-            param1 = it.getString(ARG_PARAM1)
-            param2 = it.getString(ARG_PARAM2)
-        }
+
+        folderName = arguments?.getString(ARG_FOLDER_NAME)
+
+        val repository = GalleryRepository()
+        val factory = PhotosViewModelFactory(repository)
+        viewModel = ViewModelProvider(this, factory)[PhotosViewModel::class.java]
     }
 
     override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
+        inflater: LayoutInflater,
+        container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
-        // Inflate the layout for this fragment
-        return inflater.inflate(R.layout.fragment_photo, container, false)
+    ): View {
+        binding = FragmentPhotoBinding.inflate(inflater, container, false)
+        return binding.root
     }
 
-    companion object {
-        /**
-         * Use this factory method to create a new instance of
-         * this fragment using the provided parameters.
-         *
-         * @param param1 Parameter 1.
-         * @param param2 Parameter 2.
-         * @return A new instance of fragment PhotoFragment.
-         */
-        // TODO: Rename and change types and number of parameters
-        @JvmStatic
-        fun newInstance(param1: String, param2: String) =
-            PhotoFragment().apply {
-                arguments = Bundle().apply {
-                    putString(ARG_PARAM1, param1)
-                    putString(ARG_PARAM2, param2)
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        // Title: the album name we were opened with.
+        binding.tvTitle.text = folderName ?: "Photos"
+
+        binding.recyclerPhotos.layoutManager = buildGridLayoutManager()
+
+        binding.btnBack.setOnClickListener {
+            parentFragmentManager.popBackStack()
+        }
+
+        viewModel.uiState.observe(viewLifecycleOwner) { state ->
+            renderState(state)
+        }
+
+        viewModel.loadPhotos(requireContext(), folderName)
+
+        binding.btnGridView.setOnClickListener {
+            isGridView = true
+            binding.recyclerPhotos.layoutManager = buildGridLayoutManager()
+            if (::photosAdapter.isInitialized) {
+                photosAdapter.setViewMode(true)
+            }
+        }
+
+        binding.btnListView.setOnClickListener {
+            isGridView = false
+            binding.recyclerPhotos.layoutManager = LinearLayoutManager(requireContext())
+            if (::photosAdapter.isInitialized) {
+                photosAdapter.setViewMode(false)
+            }
+        }
+    }
+
+    private fun buildGridLayoutManager(): GridLayoutManager {
+        val layoutManager = GridLayoutManager(requireContext(), gridSpanCount)
+
+        layoutManager.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
+            override fun getSpanSize(position: Int): Int {
+                return if (::photosAdapter.isInitialized) {
+                    photosAdapter.getSpanSize(position, gridSpanCount)
+                } else {
+                    1
                 }
             }
+        }
+
+        return layoutManager
+    }
+
+    private fun renderState(state: PhotosUiState) {
+
+        binding.progressBar.visibility = View.GONE
+        binding.layoutEmptyState.visibility = View.GONE
+        binding.recyclerPhotos.visibility = View.GONE
+
+        when (state) {
+
+            is PhotosUiState.Loading -> {
+                binding.progressBar.visibility = View.VISIBLE
+            }
+
+            is PhotosUiState.Empty -> {
+                binding.layoutEmptyState.visibility = View.VISIBLE
+            }
+
+            is PhotosUiState.Success -> {
+                binding.recyclerPhotos.visibility = View.VISIBLE
+
+                // Photo count for the subtitle: only count actual photos,
+                // not the date header rows mixed into the same list.
+                val photoCount = state.items.count { it is com.example.mygallery.model.PhotoListItem.Photo }
+                binding.tvSubtitle.text = "$photoCount Photos"
+
+                photosAdapter = PhotosAdapter(isGridView, state.items) { photo ->
+                    // Image Preview screen - built in a later step.
+                }
+                binding.recyclerPhotos.adapter = photosAdapter
+
+                // Re-attach the layout manager now that the adapter (and
+                // therefore getSpanSize) actually exists.
+                binding.recyclerPhotos.layoutManager = buildGridLayoutManager()
+                if (!isGridView) {
+                    binding.recyclerPhotos.layoutManager = LinearLayoutManager(requireContext())
+                }
+            }
+        }
     }
 }

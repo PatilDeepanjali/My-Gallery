@@ -2,126 +2,178 @@ package com.example.mygallery.repository
 
 import android.content.ContentUris
 import android.content.Context
+import android.os.Environment
 import android.provider.MediaStore
 import com.example.mygallery.model.GalleryFolder
 import com.example.mygallery.model.ImageModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
 
 class GalleryRepository {
 
-    fun getAllFolders(context: Context): ArrayList<GalleryFolder> {
 
-        val folderList = ArrayList<GalleryFolder>()
+    private fun queryImages(
+        context: Context,
+        selection: String?,
+        selectionArgs: Array<String>?
+    ): ArrayList<ImageModel> {
+
+        val imageList = ArrayList<ImageModel>()
 
         val projection = arrayOf(
-
             MediaStore.Images.Media._ID,
             MediaStore.Images.Media.DISPLAY_NAME,
             MediaStore.Images.Media.BUCKET_DISPLAY_NAME,
             MediaStore.Images.Media.DATE_ADDED,
             MediaStore.Images.Media.SIZE,
             MediaStore.Images.Media.MIME_TYPE
-
         )
 
         val collection = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
 
         val cursor = context.contentResolver.query(
-
             collection,
             projection,
-            null,
-            null,
+            selection,
+            selectionArgs,
             "${MediaStore.Images.Media.DATE_ADDED} DESC"
-
         )
 
-        cursor?.use {
+        cursor?.use { cur ->
 
             val idColumn =
-                it.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
-
+                cur.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
             val nameColumn =
-                it.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
-
+                cur.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
             val folderColumn =
-                it.getColumnIndexOrThrow(MediaStore.Images.Media.BUCKET_DISPLAY_NAME)
-
+                cur.getColumnIndexOrThrow(MediaStore.Images.Media.BUCKET_DISPLAY_NAME)
             val dateColumn =
-                it.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
-
+                cur.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
             val sizeColumn =
-                it.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE)
-
+                cur.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE)
             val mimeColumn =
-                it.getColumnIndexOrThrow(MediaStore.Images.Media.MIME_TYPE)
+                cur.getColumnIndexOrThrow(MediaStore.Images.Media.MIME_TYPE)
 
-            while (it.moveToNext()) {
+            while (cur.moveToNext()) {
 
-                val id = it.getLong(idColumn)
+                val id = cur.getLong(idColumn)
+                val name = cur.getString(nameColumn)
+                val folderName = cur.getString(folderColumn) ?: "Unknown"
+                val dateAdded = cur.getLong(dateColumn)
+                val size = cur.getLong(sizeColumn)
+                val mimeType = cur.getString(mimeColumn) ?: ""
 
-                val name = it.getString(nameColumn)
+                val imageUri = ContentUris.withAppendedId(collection, id)
 
-                val folderName = it.getString(folderColumn) ?: "Unknown"
-
-                val dateAdded = it.getLong(dateColumn)
-
-                val size = it.getLong(sizeColumn)
-
-                val mimeType = it.getString(mimeColumn) ?: ""
-
-                val imageUri = ContentUris.withAppendedId(
-                    collection,
-                    id
+                imageList.add(
+                    ImageModel(
+                        id = id,
+                        name = name,
+                        uri = imageUri,
+                        folderName = folderName,
+                        dateAdded = dateAdded,
+                        size = size,
+                        mimeType = mimeType
+                    )
                 )
+            }
+        }
 
-                val image = ImageModel(
+        return imageList
+    }
 
-                    id = id,
+    suspend fun getAllFolders(context: Context): ArrayList<GalleryFolder> {
 
-                    name = name,
+        return withContext(Dispatchers.IO) {
 
-                    uri = imageUri,
+            val allImages = queryImages(context, selection = null, selectionArgs = null)
+            val folderList = ArrayList<GalleryFolder>()
 
-                    folderName = folderName,
+            for (image in allImages) {
 
-                    dateAdded = dateAdded,
-
-                    size = size,
-
-                    mimeType = mimeType
-
-                )
-
-                var folder = folderList.find {
-
-                    it.folderName == folderName
-
-                }
+                var folder = folderList.find { f -> f.folderName == image.folderName }
 
                 if (folder == null) {
-
                     folder = GalleryFolder(
-
-                        folderName = folderName,
-
-                        coverImage = imageUri,
-
+                        folderName = image.folderName,
+                        coverImage = image.uri,
                         imageList = arrayListOf()
-
                     )
-
                     folderList.add(folder)
-
                 }
 
                 folder.imageList.add(image)
+            }
+
+            folderList
+        }
+    }
+
+
+    suspend fun getImages(context: Context, folderName: String?): ArrayList<ImageModel> {
+
+        return withContext(Dispatchers.IO) {
+
+            if (folderName == null) {
+                queryImages(context, selection = null, selectionArgs = null)
+            } else {
+                // "?" is a safe placeholder — Android substitutes folderName
+                // into it. Never build this by directly concatenating the
+                // folder name into the string (SQL-injection risk + bad habit).
+                val selection = "${MediaStore.Images.Media.BUCKET_DISPLAY_NAME} = ?"
+                val selectionArgs = arrayOf(folderName)
+                queryImages(context, selection, selectionArgs)
+            }
+        }
+    }
+
+    // Creating new Album
+    fun createAlbum(context: Context, albumName: String): Result<String> {
+
+        if (albumName.isBlank()) {
+            return Result.failure(Exception("Album name cannot be empty"))
+        }
+
+        val picturesDir =
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
+
+        val myGalleryDir = File(picturesDir, "MyGallery")
+
+        if (!myGalleryDir.exists()) {
+            myGalleryDir.mkdirs()
+        }
+
+        val albumFolder = File(myGalleryDir, albumName)
+
+        return if (albumFolder.exists()) {
+
+            Result.failure(Exception("Album already exists"))
+
+        } else {
+
+            if (albumFolder.mkdirs()) {
+
+                Result.success("Album created successfully")
+
+            } else {
+
+                Result.failure(Exception("Failed to create album"))
 
             }
 
         }
-
-        return folderList
-
     }
 
+    fun searchAlbums(
+        albums: List<GalleryFolder>,
+        query: String
+    ): List<GalleryFolder> {
+
+        if (query.isBlank()) return albums
+
+        return albums.filter {
+            it.folderName.contains(query, ignoreCase = true)
+        }
+    }
 }

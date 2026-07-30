@@ -5,14 +5,14 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="170dp"
-    android:layout_margin="6dp"
-    app:cardCornerRadius="16dp"
+    android:layout_height="127dp"
+    android:layout_margin="4dp"
+    app:cardCornerRadius="18dp"
     app:cardElevation="0dp">
 
     <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="127dp">
 
         <!-- Album Image -->
         <ImageView
@@ -20,36 +20,48 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:scaleType="centerCrop"
-            tools:src="@tools:sample/backgrounds/scenic"/>
+            tools:src="@tools:sample/backgrounds/scenic" />
 
         <!-- Bottom Gradient -->
         <View
             android:layout_width="match_parent"
-            android:layout_height="70dp"
+            android:layout_height="80dp"
             android:layout_gravity="bottom"
-            android:background="@drawable/bg_album_gradient"/>
+            android:background="@drawable/linear_gradient" />
 
-        <!-- Pin Icon -->
+        <!-- Pin -->
         <ImageView
             android:id="@+id/imgPin"
-            android:layout_width="20dp"
-            android:layout_height="20dp"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
             android:layout_gravity="top|start"
-            android:layout_margin="10dp"
+            android:layout_margin="8dp"
             android:background="@drawable/bg_circle_white"
-            android:padding="3dp"
+            android:padding="4dp"
             android:src="@drawable/ic_pin"
-            android:visibility="gone"/>
+            android:visibility="gone"
+            tools:visibility="visible"/>
 
-        <!-- Selection Icon -->
+        <!-- Checkbox -->
         <ImageView
             android:id="@+id/iv_checkbox"
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:layout_gravity="top|end"
-            android:layout_margin="10dp"
+            android:layout_margin="8dp"
             android:src="@drawable/ic_check_circle_filled"
-            android:visibility="gone"/>
+            android:visibility="gone"
+            tools:visibility="visible"/>
+
+        <!-- Play icon -->
+        <ImageView
+            android:id="@+id/imgPlay"
+            android:layout_width="34dp"
+            android:layout_height="34dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_play_circle"
+            android:visibility="gone"
+            tools:visibility="visible"/>
 
         <!-- Bottom Text -->
         <LinearLayout
@@ -57,15 +69,20 @@
             android:layout_height="wrap_content"
             android:layout_gravity="bottom"
             android:orientation="vertical"
-            android:padding="12dp">
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:paddingBottom="12dp">
 
             <TextView
                 android:id="@+id/tvAlbumName"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:text="Camera"
                 android:textColor="@android:color/white"
-                android:textSize="18sp"
+                android:textSize="16sp"
                 android:textStyle="bold"
+                android:maxLines="1"
+                android:ellipsize="end"
                 tools:text="Camera"/>
 
             <TextView
@@ -73,8 +90,11 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
-                android:textColor="@android:color/white"
-                android:textSize="13sp"
+                android:text="600 • 100KB"
+                android:textColor="#F2FFFFFF"
+                android:textSize="12sp"
+                android:maxLines="1"
+                android:ellipsize="end"
                 tools:text="600 • 100KB"/>
 
         </LinearLayout>

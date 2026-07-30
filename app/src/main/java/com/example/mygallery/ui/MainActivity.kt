@@ -6,6 +6,7 @@ import androidx.appcompat.app.AppCompatActivity
 import com.example.mygallery.R
 import com.example.mygallery.databinding.ActivityMainBinding
 import com.example.mygallery.ui.album.AlbumFragment
+import com.example.mygallery.ui.photos.PhotoFragment
 
 class MainActivity : AppCompatActivity() {
 
@@ -20,6 +21,7 @@ class MainActivity : AppCompatActivity() {
 
 
         var albumFragment = AlbumFragment()
+            var photoFragment= PhotoFragment()
         // for Fragement Frame
 
         supportFragmentManager.beginTransaction().add(R.id.frameContainer, albumFragment).commit()
@@ -32,19 +34,19 @@ class MainActivity : AppCompatActivity() {
             when (menuItem.itemId) {
                 R.id.album -> {
                     supportFragmentManager.beginTransaction()
-                        .add(R.id.frameContainer, albumFragment).commit()
+                        .replace(R.id.frameContainer, albumFragment).commit()
                     true
                 }
 
                 R.id.photo -> {
                     supportFragmentManager.beginTransaction()
-                        .add(R.id.frameContainer, albumFragment).commit()
+                        .replace(R.id.frameContainer,photoFragment ).commit()
                     true
                 }
 
                 R.id.menu -> {
                     supportFragmentManager.beginTransaction()
-                        .add(R.id.frameContainer, albumFragment).commit()
+                        .replace(R.id.frameContainer, albumFragment).commit()
                     true
                 }
 
