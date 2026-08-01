@@ -10,7 +10,9 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.mygallery.adapter.PhotosAdapter
 import com.example.mygallery.databinding.FragmentPhotoBinding
+import com.example.mygallery.model.PhotoAction
 import com.example.mygallery.repository.GalleryRepository
+import com.example.mygallery.ui.photo.PhotoActionPopup
 import com.example.mygallery.ui.state.PhotosUiState
 import com.example.mygallery.viewmodel.PhotosViewModel
 import com.example.mygallery.viewmodel.PhotosViewModelFactory
@@ -61,6 +63,53 @@ class PhotoFragment : Fragment() {
         binding.btnBack.setOnClickListener {
             parentFragmentManager.popBackStack()
         }
+
+
+        binding.btnMenu.setOnClickListener {
+
+            PhotoActionPopup.show(
+                requireContext(),
+                binding.btnMenu
+            ) { action ->
+
+                when (action) {
+
+                    PhotoAction.SELECT -> {
+
+                    }
+
+                    PhotoAction.PIN -> {
+
+                    }
+
+                    PhotoAction.SORT -> {
+
+                    }
+
+                    PhotoAction.FILTER -> {
+
+                    }
+
+                    PhotoAction.LAYOUT_STYLE -> {
+
+                    }
+
+                    PhotoAction.COLUMN -> {
+
+                    }
+
+                    PhotoAction.SLIDE_SHOW -> {
+
+                    }
+
+                }
+
+            }
+
+        }
+
+
+
 
         viewModel.uiState.observe(viewLifecycleOwner) { state ->
             renderState(state)

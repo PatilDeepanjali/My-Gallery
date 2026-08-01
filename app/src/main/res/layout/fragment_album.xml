@@ -128,6 +128,48 @@
 
     </LinearLayout>
 
+    <!--
+        Groups the "normal mode" header views so they can all be
+        shown/hidden together with ONE visibility change, instead of
+        toggling 6 views individually every time selection mode
+        starts/stops.
+    -->
+    <androidx.constraintlayout.widget.Group
+        android:id="@+id/groupNormalHeader"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:constraint_referenced_ids="tvTitle,tvSubtitle,btnAdd,btnSort,searchBar,viewToggleGroup" />
+
+    <!-- Selection mode toolbar (close / count / pin / overflow).
+         Occupies the same top area as the normal header, shown
+         only while selection mode is active. -->
+    <include
+        android:id="@+id/toolbarSelection"
+        layout="@layout/toolbar_selection"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="8dp"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:visibility="gone" />
+
+    <!--
+        A Barrier tracks whichever of these two is actually visible and
+        gives everything below (pinnedBanner, RecyclerView, etc.) a
+        single stable anchor to constrain to — regardless of whether
+        normal mode or selection mode is currently showing. GONE views
+        contribute 0 height to a Barrier, so this "just works" for both.
+    -->
+    <androidx.constraintlayout.widget.Barrier
+        android:id="@+id/headerBarrier"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:barrierDirection="bottom"
+        app:constraint_referenced_ids="searchBar,toolbarSelection" />
+
     <!-- Banner -->
     <LinearLayout
         android:id="@+id/pinnedBanner"
@@ -143,7 +185,7 @@
         android:visibility="gone"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/searchBar">
+        app:layout_constraintTop_toBottomOf="@id/headerBarrier">
 
         <ImageView
             android:layout_width="20dp"

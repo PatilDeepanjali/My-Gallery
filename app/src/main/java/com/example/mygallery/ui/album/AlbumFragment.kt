@@ -25,6 +25,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.mygallery.adapter.GalleryAdapter
 import com.example.mygallery.databinding.DialogCreateAlbumBinding
 import com.example.mygallery.databinding.FragmentAlbumBinding
+import com.example.mygallery.model.GalleryFolder
 import com.example.mygallery.repository.GalleryRepository
 import com.example.mygallery.ui.photos.PhotoFragment
 import com.example.mygallery.ui.state.GalleryUiState
@@ -97,6 +98,33 @@ class AlbumFragment : Fragment() {
 
         viewModel.uiState.observe(viewLifecycleOwner) { state ->
             renderState(state)
+        }
+
+        // Selection mode: both LiveData feed the same render function,
+        // since the toolbar text and adapter checkboxes both depend on
+        // BOTH "are we in selection mode" AND "which folders are selected".
+        viewModel.isSelectionMode.observe(viewLifecycleOwner) {
+            renderSelectionState()
+        }
+        viewModel.selectedFolderNames.observe(viewLifecycleOwner) {
+            renderSelectionState()
+        }
+
+        // Selection toolbar: close button exits selection mode entirely.
+        binding.toolbarSelection.btnClose.setOnClickListener {
+            viewModel.exitSelectionMode()
+        }
+
+        // Selection toolbar: overflow shows the same 6-action popup as
+        // before, but now it acts on ALL currently selected folders.
+        binding.toolbarSelection.btnOverflow.setOnClickListener {
+            val selectedFolders = viewModel.getSelectedFolders()
+
+            if (selectedFolders.isEmpty()) return@setOnClickListener
+
+            AlbumActionPopup.show(requireContext(), binding.toolbarSelection.btnOverflow) { action ->
+                handleAlbumAction(action, selectedFolders)
+            }
         }
 
         // Request permission and load albums
@@ -259,24 +287,130 @@ class AlbumFragment : Fragment() {
 
                 galleryAdapter = GalleryAdapter(
                     isGridView,
-                    state.folder.toMutableList()
-                ) { folder ->
+                    state.folder.toMutableList(),
+                    onFolderClick = { folder ->
 
-                    val photoFragment = PhotoFragment()
+                        val photoFragment = PhotoFragment()
 
-                    photoFragment.arguments = Bundle().apply {
-                        putParcelableArrayList("images", folder.imageList)
-                        putString(PhotoFragment.ARG_FOLDER_NAME, folder.folderName)
+                        photoFragment.arguments = Bundle().apply {
+                            putString(PhotoFragment.ARG_FOLDER_NAME, folder.folderName)
+                        }
+
+                        parentFragmentManager.beginTransaction()
+                            .replace(R.id.frameContainer, photoFragment)
+                            .addToBackStack(null)
+                            .commit()
+                    },
+                    onFolderLongClick = { folder ->
+                        viewModel.enterSelectionMode(folder)
+                    },
+                    onFolderToggleSelect = { folder ->
+                        viewModel.toggleSelection(folder)
                     }
-
-                    parentFragmentManager.beginTransaction()
-                        .replace(R.id.frameContainer, photoFragment)
-                        .addToBackStack(null)
-                        .commit()
-                }
+                )
                 binding.recyclerAlbums.adapter = galleryAdapter
+
+                // In case Success arrives WHILE already in selection mode
+                // (e.g. list refreshed after a delete), make sure the new
+                // adapter instance immediately reflects current selection.
+                renderSelectionState()
             }
         }
+    }
+
+    /**
+     * Single place that reacts to BOTH isSelectionMode and
+     * selectedFolderNames changing — keeps the toolbar swap, the
+     * toolbar's count/size text, and the adapter's checkboxes all in
+     * sync with one source of truth (the ViewModel).
+     */
+    private fun renderSelectionState() {
+
+        val isSelectionMode = viewModel.isSelectionMode.value ?: false
+        val selectedNames = viewModel.selectedFolderNames.value ?: emptySet()
+
+        binding.groupNormalHeader.visibility =
+            if (isSelectionMode) View.GONE else View.VISIBLE
+        binding.toolbarSelection.root.visibility =
+            if (isSelectionMode) View.VISIBLE else View.GONE
+
+        if (::galleryAdapter.isInitialized) {
+            galleryAdapter.setSelectionState(isSelectionMode, selectedNames)
+        }
+
+        if (isSelectionMode) {
+            val selectedFolders = viewModel.getSelectedFolders()
+            val totalCount = selectedFolders.size
+            val totalSize = selectedFolders.sumOf { folder ->
+                folder.imageList.sumOf { it.size }
+            }
+            val formattedSize = android.text.format.Formatter.formatShortFileSize(
+                requireContext(),
+                totalSize
+            )
+            binding.toolbarSelection.tvSelectionCount.text =
+                "$totalCount Selected ($formattedSize)"
+        }
+    }
+
+    /**
+     * Handles whichever action the user picked from the popup, applied
+     * to ALL currently selected folders. Most of these are stubs for
+     * now (Toast only) — each one is its own real feature we'll build
+     * properly in a later step. Details is implemented fully since it
+     * only needs data we already have.
+     */
+    private fun handleAlbumAction(action: AlbumAction, folders: List<GalleryFolder>) {
+        when (action) {
+
+            AlbumAction.PIN -> {
+                Toast.makeText(requireContext(), "Pin — coming soon", Toast.LENGTH_SHORT).show()
+            }
+
+            AlbumAction.SHARE -> {
+                Toast.makeText(requireContext(), "Share — coming soon", Toast.LENGTH_SHORT).show()
+            }
+
+            AlbumAction.DELETE -> {
+                Toast.makeText(requireContext(), "Delete — coming soon", Toast.LENGTH_SHORT).show()
+            }
+
+            AlbumAction.COPY -> {
+                Toast.makeText(requireContext(), "Copy — coming soon", Toast.LENGTH_SHORT).show()
+            }
+
+            AlbumAction.MOVE -> {
+                Toast.makeText(requireContext(), "Move — coming soon", Toast.LENGTH_SHORT).show()
+            }
+
+            AlbumAction.DETAILS -> {
+                showAlbumDetailsDialog(folders)
+            }
+        }
+    }
+
+    private fun showAlbumDetailsDialog(folders: List<GalleryFolder>) {
+
+        val totalItems = folders.sumOf { it.imageCount }
+        val totalSizeBytes = folders.sumOf { folder -> folder.imageList.sumOf { it.size } }
+        val formattedSize = android.text.format.Formatter.formatShortFileSize(
+            requireContext(),
+            totalSizeBytes
+        )
+
+        val namesList = folders.joinToString(", ") { it.folderName }
+
+        val message = """
+            Albums: $namesList
+            Total items: $totalItems
+            Total size: $formattedSize
+        """.trimIndent()
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("Album Details")
+            .setMessage(message)
+            .setPositiveButton("OK", null)
+            .show()
     }
 
     private fun checkPermission() {

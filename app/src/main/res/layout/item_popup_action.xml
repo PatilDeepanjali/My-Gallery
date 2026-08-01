@@ -1,165 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:orientation="vertical"
+    android:id="@+id/rowRoot"
+    android:layout_width="152dp"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
     android:gravity="center_vertical"
     android:paddingHorizontal="16dp"
-    android:paddingVertical="10dp"
-    android:background="?attr/selectableItemBackground">
+    android:paddingVertical="8dp"
+    android:background="?attr/selectableItemBackground"
+    android:clickable="true"
+    android:focusable="true">
 
-
-    <LinearLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_margin="5dp"
-        android:id="@+id/action_pin">
-
-        <ImageView
-        android:id="@+id/icon"
-        android:layout_width="18dp"
-        android:layout_height="18dp"
-        android:src="@drawable/ic_pin"
-        app:tint="#444444" />
+    <ImageView
+        android:id="@+id/imgActionIcon"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:contentDescription="@null"
+        app:tint="@color/onBackground" />
 
     <TextView
-        android:id="@+id/label"
+        android:id="@+id/tvActionLabel"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="12dp"
-        android:text="Pin"
+        android:layout_marginStart="16dp"
         android:textSize="14sp"
-        android:textColor="#222222" />
+        android:textColor="@color/onBackground" />
 
-    </LinearLayout>
-
-
-
-    <LinearLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_margin="5dp"
-        android:id="@+id/action_share">
-
-        <ImageView
-            android:id="@+id/ic_share"
-            android:layout_width="18dp"
-            android:layout_height="18dp"
-            android:src="@drawable/ic_share"
-            app:tint="#444444" />
-
-        <TextView
-            android:id="@+id/share_lable"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:text="Share"
-            android:textSize="14sp"
-            android:textColor="#222222" />
-
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_margin="5dp"
-        android:id="@+id/action_delet">
-
-        <ImageView
-            android:id="@+id/ic_delete"
-            android:layout_width="18dp"
-            android:layout_height="18dp"
-            android:src="@drawable/ic_delete"
-            app:tint="#444444" />
-
-        <TextView
-            android:id="@+id/delete_lable"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:text="Delete"
-            android:textSize="14sp"
-            android:textColor="#222222" />
-
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_margin="5dp"
-        android:orientation="horizontal"
-        android:id="@+id/action_copy">
-
-        <ImageView
-            android:id="@+id/ic_copy"
-            android:layout_width="18dp"
-            android:layout_height="18dp"
-            android:src="@drawable/ic_copy"
-            app:tint="#444444" />
-
-        <TextView
-            android:id="@+id/copy_label"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:text="Copy"
-            android:textSize="14sp"
-            android:textColor="#222222" />
-
-    </LinearLayout>
-
-
-    <LinearLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_margin="5dp"
-        android:orientation="horizontal"
-        android:id="@+id/action_move">
-
-        <ImageView
-            android:id="@+id/ic_move"
-            android:layout_width="18dp"
-            android:layout_height="18dp"
-            android:src="@drawable/ic_move"
-            app:tint="#444444" />
-
-        <TextView
-            android:id="@+id/move_lable"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:text="Move"
-            android:textSize="14sp"
-            android:textColor="#222222" />
-
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_margin="5dp"
-        android:id="@+id/action_details">
-
-        <ImageView
-            android:id="@+id/ic_details"
-            android:layout_width="18dp"
-            android:layout_height="18dp"
-            android:src="@drawable/ic_details"
-            app:tint="#444444" />
-
-        <TextView
-            android:id="@+id/details_label"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:text="Details"
-            android:textSize="14sp"
-            android:textColor="#222222" />
-
-    </LinearLayout>
 </LinearLayout>
