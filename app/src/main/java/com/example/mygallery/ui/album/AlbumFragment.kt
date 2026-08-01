@@ -119,6 +119,22 @@ class AlbumFragment : Fragment() {
             }
         }
 
+
+
+        // List Button
+        binding.btnListView.setOnClickListener {
+
+            isGridView = false
+
+            binding.recyclerAlbums.layoutManager =
+                LinearLayoutManager(requireContext())
+
+            if (::galleryAdapter.isInitialized) {
+                galleryAdapter.setViewMode(false)
+            }
+        }
+
+
         // Search Faeture
         binding.searchAlbums.addTextChangedListener(object : TextWatcher {
 
@@ -145,18 +161,6 @@ class AlbumFragment : Fragment() {
 
 
 
-        // List Button
-        binding.btnListView.setOnClickListener {
-
-            isGridView = false
-
-            binding.recyclerAlbums.layoutManager =
-                LinearLayoutManager(requireContext())
-
-            if (::galleryAdapter.isInitialized) {
-                galleryAdapter.setViewMode(false)
-            }
-        }
 
 
         binding.btnAdd.setOnClickListener {
@@ -201,6 +205,7 @@ class AlbumFragment : Fragment() {
             }
         }
 
+        // For Top arrow Button
         binding.recyclerAlbums.addOnScrollListener(object : RecyclerView.OnScrollListener() {
 
             override fun onScrolled(
@@ -261,7 +266,7 @@ class AlbumFragment : Fragment() {
 
                     photoFragment.arguments = Bundle().apply {
                         putParcelableArrayList("images", folder.imageList)
-                        putString("folderName", folder.folderName)
+                        putString(PhotoFragment.ARG_FOLDER_NAME, folder.folderName)
                     }
 
                     parentFragmentManager.beginTransaction()

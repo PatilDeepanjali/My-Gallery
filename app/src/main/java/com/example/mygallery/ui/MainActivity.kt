@@ -11,17 +11,16 @@ import com.example.mygallery.ui.photos.PhotoFragment
 class MainActivity : AppCompatActivity() {
 
 
-
-        override fun onCreate(savedInstanceState: Bundle?) {
+    override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-     var binding = ActivityMainBinding.inflate(layoutInflater)
+        var binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
 
         var albumFragment = AlbumFragment()
-            var photoFragment= PhotoFragment()
+        var photoFragment = PhotoFragment()
         // for Fragement Frame
 
         supportFragmentManager.beginTransaction().add(R.id.frameContainer, albumFragment).commit()
@@ -40,7 +39,7 @@ class MainActivity : AppCompatActivity() {
 
                 R.id.photo -> {
                     supportFragmentManager.beginTransaction()
-                        .replace(R.id.frameContainer,photoFragment ).commit()
+                        .replace(R.id.frameContainer, photoFragment).commit()
                     true
                 }
 
