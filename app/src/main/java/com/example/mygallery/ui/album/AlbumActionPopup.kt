@@ -8,6 +8,7 @@ import android.widget.PopupWindow
 import com.example.mygallery.R
 import com.example.mygallery.databinding.ItemPopupActionBinding
 import com.example.mygallery.databinding.PopupAlbumActionsBinding
+import com.example.mygallery.model.PopupMenuItem
 
 /**
  * Builds and shows the long-press popup for an album (Pin / Share /
@@ -23,12 +24,12 @@ object AlbumActionPopup {
 
     // (icon resource, display label, action) for each row, in display order.
     private val actions = listOf(
-        Triple(R.drawable.ic_pin, "Pin", AlbumAction.PIN),
-        Triple(R.drawable.ic_share, "Share", AlbumAction.SHARE),
-        Triple(R.drawable.ic_delete, "Delete", AlbumAction.DELETE),
-        Triple(R.drawable.ic_copy, "Copy", AlbumAction.COPY),
-        Triple(R.drawable.ic_move, "Move", AlbumAction.MOVE),
-        Triple(R.drawable.ic_details, "Details", AlbumAction.DETAILS)
+        PopupMenuItem(R.drawable.ic_pin, "Pin", AlbumAction.PIN),
+        PopupMenuItem(R.drawable.ic_share, "Share", AlbumAction.SHARE),
+        PopupMenuItem(R.drawable.ic_delete, "Delete", AlbumAction.DELETE),
+        PopupMenuItem(R.drawable.ic_copy, "Copy", AlbumAction.COPY),
+        PopupMenuItem(R.drawable.ic_move, "Move", AlbumAction.MOVE),
+        PopupMenuItem(R.drawable.ic_details, "Details", AlbumAction.DETAILS)
     )
 
     fun show(
@@ -58,10 +59,11 @@ object AlbumActionPopup {
             android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT)
         )
 
-
+        // Setting elevation on the XML view alone isn't enough for
+        // PopupWindow — it needs elevation set on the PopupWindow
+        // itself to render a proper drop shadow (API 21+, fine for
+        // our minSdk 24).
         popupWindow.elevation = 16f
-
-        popupWindow.showAsDropDown(anchorView, 0, 7)
 
         for ((iconRes, label, action) in actions) {
 
@@ -82,7 +84,23 @@ object AlbumActionPopup {
             containerBinding.popupContainer.addView(rowBinding.root)
         }
 
-        // Shows the popup just below-and-left of the long-pressed item.
-        popupWindow.showAsDropDown(anchorView, 0, 0)
+        // Measure the popup's content BEFORE showing it, so we know its
+        // actual width and can position it correctly.
+        containerBinding.root.measure(
+            View.MeasureSpec.UNSPECIFIED,
+            View.MeasureSpec.UNSPECIFIED
+        )
+        val popupWidth = containerBinding.root.measuredWidth
+
+        // showAsDropDown aligns the popup's LEFT edge with the anchor's
+        // LEFT edge by default. Since our anchor (the "⋮" icon) sits
+        // near the right edge of the screen, that leaves an awkward gap
+        // on the right. Shifting left by (popupWidth - anchorWidth)
+        // instead lines up the popup's RIGHT edge with the anchor's
+        // right edge — the standard "overflow menu" positioning.
+        val xOffset = anchorView.width - popupWidth
+
+        // Shows the popup just below-and-right-aligned with the anchor.
+        popupWindow.showAsDropDown(anchorView, xOffset, 0)
     }
 }

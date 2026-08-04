@@ -84,8 +84,7 @@ class AlbumFragment : Fragment() {
         binding.fabScrollTop.hide()
 
         // Default RecyclerView Layout
-        binding.recyclerAlbums.layoutManager =
-            GridLayoutManager(requireContext(), 3)
+        updateLayoutManager()
 
 
         // for Searching
@@ -258,6 +257,18 @@ class AlbumFragment : Fragment() {
             binding.recyclerAlbums.smoothScrollToPosition(0)
 
         }
+    }
+
+
+
+    private fun updateLayoutManager() {
+
+        binding.recyclerAlbums.layoutManager =
+            if (isGridView) {
+                GridLayoutManager(requireContext(), 3)
+            } else {
+                LinearLayoutManager(requireContext())
+            }
     }
 
     private fun renderState(state: GalleryUiState) {

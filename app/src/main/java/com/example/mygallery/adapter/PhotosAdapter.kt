@@ -16,7 +16,7 @@ import java.util.Locale
 class PhotosAdapter(
     private var isGridView: Boolean,
     private val items: List<PhotoListItem>,
-    private val onPhotoClick: (PhotoListItem.Photo) -> Unit
+    private val onPhotoClick: (PhotoListItem.Photo,Int) -> Unit
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     companion object {
@@ -27,6 +27,22 @@ class PhotosAdapter(
 
     fun getSpanSize(position: Int, totalSpanCount: Int): Int {
         return if (items[position] is PhotoListItem.DateHeader) totalSpanCount else 1
+    }
+
+
+    private fun getPhotoIndex(adapterPosition: Int): Int {
+
+        var photoIndex = -1
+
+        for (i in 0..adapterPosition) {
+
+            if (items[i] is PhotoListItem.Photo) {
+                photoIndex++
+            }
+
+        }
+
+        return photoIndex
     }
 
     override fun getItemViewType(position: Int): Int {
@@ -75,7 +91,10 @@ class PhotosAdapter(
             is GridViewHolder -> {
                 val photo = items[position] as PhotoListItem.Photo
 
-                holder.itemView.setOnClickListener { onPhotoClick(photo) }
+                holder.itemView.setOnClickListener {  onPhotoClick(
+                    photo,
+                    getPhotoIndex(position)
+                ) }
 
                 Glide.with(holder.itemView.context)
                     .load(photo.image.uri)
@@ -86,7 +105,10 @@ class PhotosAdapter(
             is ListViewHolder -> {
                 val photo = items[position] as PhotoListItem.Photo
 
-                holder.itemView.setOnClickListener { onPhotoClick(photo) }
+                holder.itemView.setOnClickListener {   onPhotoClick(
+                    photo,
+                    getPhotoIndex(position)
+                ) }
 
                 holder.binding.tvPhotoName.text = photo.image.name
 

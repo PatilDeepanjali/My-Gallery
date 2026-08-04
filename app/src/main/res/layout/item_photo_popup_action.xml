@@ -1,17 +1,21 @@
-<LinearLayout android:id="@+id/rowRoot"
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/rowRoot"
     android:layout_width="152dp"
-    android:layout_height="48dp"
+    android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:gravity="center_vertical"
     android:paddingHorizontal="16dp"
+    android:paddingVertical="8dp"
     android:background="?attr/selectableItemBackground"
-    xmlns:android="http://schemas.android.com/apk/res/android"
     android:clickable="true"
     android:focusable="true">
 
     <ImageView
         android:id="@+id/imgActionIcon"
         android:layout_width="20dp"
+        android:contentDescription="@null"
         android:layout_height="20dp"/>
 
     <TextView
@@ -19,6 +23,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
+        android:textColor="@color/onBackground"
         android:layout_marginStart="16dp"
         android:textSize="14sp"/>
 

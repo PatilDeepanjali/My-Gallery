@@ -3,6 +3,7 @@ package com.example.mygallery.ui.photo
 import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -10,58 +11,52 @@ import android.widget.PopupWindow
 import com.example.mygallery.R
 import com.example.mygallery.databinding.ItemPhotoPopupActionBinding
 import com.example.mygallery.databinding.PopupPhotoActionsBinding
-import com.example.mygallery.ui.photo.PhotoAction
 import com.example.mygallery.model.PopupMenuItem
 
-object PhotoActionPopup {
+object PreviewActionPopup {
 
     private val actions = listOf(
 
         PopupMenuItem(
-            R.drawable.ic_select,
-            "Select",
-            PhotoAction.SELECT,
-            true
+            R.drawable.ic_copy,
+            "Copy",
+            PreviewAction.COPY
         ),
 
         PopupMenuItem(
-            R.drawable.ic_pin,
-            "Pin",
-            PhotoAction.PIN
+            R.drawable.ic_move,
+            "Move",
+            PreviewAction.MOVE
         ),
 
         PopupMenuItem(
-            R.drawable.ic_sort2,
-            "Sort By",
-            PhotoAction.SORT,
-            true
+            R.drawable.ic_rename,
+            "Rename",
+            PreviewAction.RENAME
         ),
 
         PopupMenuItem(
-            R.drawable.ic_filter,
-            "Filter",
-            PhotoAction.FILTER,
-            true
-        ),
-
-        PopupMenuItem(
-            R.drawable.ic_layout,
-            "Layout Style",
-            PhotoAction.LAYOUT_STYLE,
-            true
-        ),
-
-        PopupMenuItem(
-            R.drawable.ic_column,
-            "Column",
-            PhotoAction.COLUMN,
-            true
+            R.drawable.ic_open_with,
+            "Open With",
+            PreviewAction.OPEN_WITH
         ),
 
         PopupMenuItem(
             R.drawable.ic_slideshow,
             "Slide Show",
-            PhotoAction.SLIDE_SHOW
+            PreviewAction.SLIDE_SHOW
+        ),
+
+        PopupMenuItem(
+            R.drawable.ic_wallpaper,
+            "Set as Wallpaper",
+            PreviewAction.WALLPAPER
+        ),
+
+        PopupMenuItem(
+            R.drawable.ic_details,
+            "Details",
+            PreviewAction.DETAILS
         )
 
     )
@@ -69,7 +64,7 @@ object PhotoActionPopup {
     fun show(
         context: Context,
         anchorView: View,
-        onActionSelected: (PhotoAction) -> Unit
+        onActionSelected: (PreviewAction) -> Unit
     ) {
 
         val inflater = LayoutInflater.from(context)
@@ -90,6 +85,7 @@ object PhotoActionPopup {
 
         popupWindow.elevation = 16f
 
+        // Add menu items
         for (item in actions) {
 
             val rowBinding = ItemPhotoPopupActionBinding.inflate(
@@ -114,14 +110,33 @@ object PhotoActionPopup {
             containerBinding.popupContainer.addView(rowBinding.root)
         }
 
+        // Measure popup size
         containerBinding.root.measure(
             View.MeasureSpec.UNSPECIFIED,
             View.MeasureSpec.UNSPECIFIED
         )
 
         val popupWidth = containerBinding.root.measuredWidth
-        val xOffset = anchorView.width - popupWidth
+        val popupHeight = containerBinding.root.measuredHeight
 
-        popupWindow.showAsDropDown(anchorView, xOffset, 7)
+        // Get anchor position on screen
+        val location = IntArray(2)
+        anchorView.getLocationOnScreen(location)
+
+        val anchorX = location[0]
+        val anchorY = location[1]
+
+        // Align popup right edge with More button
+        val x = anchorX + anchorView.width - popupWidth
+
+        // Show popup ABOVE the More button
+        val y = anchorY - popupHeight - 12
+
+        popupWindow.showAtLocation(
+            anchorView.rootView,
+            Gravity.TOP or Gravity.START,
+            x,
+            y
+        )
     }
 }

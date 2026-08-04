@@ -5,11 +5,19 @@ import java.util.Date
 import java.util.Locale
 
 object DateUtils {
-    fun formatDate(time: Long): String {
-        val sdf = SimpleDateFormat(
-            "dd MMM yyyy",
-            Locale.getDefault()
-        )
-        return sdf.format(Date(time))
+    public fun formatDate(time: Long): String {
+
+        val formatter =
+            SimpleDateFormat("MMMM dd", Locale.getDefault())
+
+        return formatter.format(Date(time * 1000))
+    }
+
+    public fun formatTime(time: Long): String {
+
+        val formatter =
+            SimpleDateFormat("HH:mm", Locale.getDefault())
+
+        return formatter.format(Date(time * 1000))
     }
 }

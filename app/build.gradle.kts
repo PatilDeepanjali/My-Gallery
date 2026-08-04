@@ -66,4 +66,7 @@ dependencies {
 
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.9.2")
 
+
+    implementation("com.github.chrisbanes:PhotoView:2.3.0")
+
 }

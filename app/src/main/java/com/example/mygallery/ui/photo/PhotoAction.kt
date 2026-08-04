@@ -1,4 +1,4 @@
-package com.example.mygallery.model
+package com.example.mygallery.ui.photo
 
 enum class PhotoAction {
 

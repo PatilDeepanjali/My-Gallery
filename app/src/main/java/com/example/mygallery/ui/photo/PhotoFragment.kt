@@ -8,14 +8,19 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.example.mygallery.R
 import com.example.mygallery.adapter.PhotosAdapter
 import com.example.mygallery.databinding.FragmentPhotoBinding
-import com.example.mygallery.model.PhotoAction
+import com.example.mygallery.model.ImageModel
+import com.example.mygallery.ui.photo.PhotoAction
 import com.example.mygallery.repository.GalleryRepository
 import com.example.mygallery.ui.photo.PhotoActionPopup
+import com.example.mygallery.ui.photo.PhotoPreviewFragment
 import com.example.mygallery.ui.state.PhotosUiState
 import com.example.mygallery.viewmodel.PhotosViewModel
 import com.example.mygallery.viewmodel.PhotosViewModelFactory
+
+
 
 
 class PhotoFragment : Fragment() {
@@ -24,6 +29,8 @@ class PhotoFragment : Fragment() {
         const val ARG_FOLDER_NAME = "arg_folder_name"
     }
 
+
+    private var photoList = ArrayList<ImageModel>()
     private lateinit var binding: FragmentPhotoBinding
     private lateinit var viewModel: PhotosViewModel
     private lateinit var photosAdapter: PhotosAdapter
@@ -169,12 +176,53 @@ class PhotoFragment : Fragment() {
             is PhotosUiState.Success -> {
                 binding.recyclerPhotos.visibility = View.VISIBLE
 
+
+
                 // Photo count for the subtitle: only count actual photos,
                 // not the date header rows mixed into the same list.
                 val photoCount = state.items.count { it is com.example.mygallery.model.PhotoListItem.Photo }
                 binding.tvSubtitle.text = "$photoCount Photos"
 
-                photosAdapter = PhotosAdapter(isGridView, state.items) { photo ->
+
+                photoList.clear()
+
+                state.items.forEach { item ->
+
+                    if (item is com.example.mygallery.model.PhotoListItem.Photo) {
+
+                        photoList.add(item.image)
+
+                    }
+
+                }
+
+                photosAdapter = PhotosAdapter(
+                    isGridView,
+                    state.items
+                ) { photo, position ->
+
+
+                    val previewPhoto = PhotoPreviewFragment()
+
+                    previewPhoto.arguments = Bundle().apply {
+
+                        putParcelableArrayList(
+                            PhotoPreviewFragment.ARG_IMAGE_LIST,
+                            photoList
+                        )
+
+                        putInt(
+                            PhotoPreviewFragment.ARG_POSITION,
+                            position
+                        )
+                    }
+
+
+                    parentFragmentManager.beginTransaction()
+                        .replace(R.id.frameContainer,
+                        previewPhoto)
+                        .addToBackStack(null)
+                        .commit()
                     // Image Preview screen - built in a later step.
                 }
                 binding.recyclerPhotos.adapter = photosAdapter
