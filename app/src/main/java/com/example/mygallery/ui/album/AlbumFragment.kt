@@ -40,6 +40,46 @@ class AlbumFragment : Fragment() {
 
     private var isGridView = true
 
+
+
+    // Holds the remaining URIs still needing deletion when we're on the
+    // Android 10 (Q) "grant permission, then retry" path. Null means
+    // we're either not mid-delete, or we're on the Android 11+ path
+    // where Android deletes everything itself after confirmation.
+    private var pendingDeleteRetryUris: List<android.net.Uri>? = null
+
+    // Launches the system's delete/permission confirmation dialog and
+    // reports back whether the user allowed or denied it.
+    private val deleteIntentSenderLauncher = registerForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult()
+    ) { activityResult ->
+
+        if (activityResult.resultCode == android.app.Activity.RESULT_OK) {
+
+            val retryUris = pendingDeleteRetryUris
+            pendingDeleteRetryUris = null
+
+            if (retryUris != null) {
+                // Android 10 path: permission was just granted for one
+                // file — now actually delete the remaining ones.
+                viewModel.deleteImages(requireContext(), retryUris) { result ->
+                    handleDeleteResult(result)
+                }
+            } else {
+                // Android 11+ path: Android already deleted the files
+                // itself once the user confirmed.
+                onDeleteFinished()
+            }
+
+        } else {
+            pendingDeleteRetryUris = null
+            Toast.makeText(requireContext(), "Delete cancelled", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+
+
+
     private val requestPermission =
         registerForActivityResult(
             ActivityResultContracts.RequestPermission()
@@ -121,7 +161,10 @@ class AlbumFragment : Fragment() {
 
             if (selectedFolders.isEmpty()) return@setOnClickListener
 
-            AlbumActionPopup.show(requireContext(), binding.toolbarSelection.btnOverflow) { action ->
+            AlbumActionPopup.show(
+                requireContext(),
+                binding.toolbarSelection.btnOverflow
+            ) { action ->
                 handleAlbumAction(action, selectedFolders)
             }
         }
@@ -145,7 +188,6 @@ class AlbumFragment : Fragment() {
                 galleryAdapter.setViewMode(true)
             }
         }
-
 
 
         // List Button
@@ -258,7 +300,6 @@ class AlbumFragment : Fragment() {
 
         }
     }
-
 
 
     private fun updateLayoutManager() {
@@ -379,11 +420,12 @@ class AlbumFragment : Fragment() {
             }
 
             AlbumAction.SHARE -> {
-                Toast.makeText(requireContext(), "Share — coming soon", Toast.LENGTH_SHORT).show()
+                shareFolders(folders)
+
             }
 
             AlbumAction.DELETE -> {
-                Toast.makeText(requireContext(), "Delete — coming soon", Toast.LENGTH_SHORT).show()
+                confirmAndDeleteFolders(folders)
             }
 
             AlbumAction.COPY -> {
@@ -395,9 +437,107 @@ class AlbumFragment : Fragment() {
             }
 
             AlbumAction.DETAILS -> {
+
                 showAlbumDetailsDialog(folders)
             }
         }
+    }
+
+    /**
+     * Shows our OWN confirmation dialog first (app-level "are you
+     * sure?"). Only if the user confirms do we go on to Android's
+     * OWN system-level confirmation (required on API 29+) — so on
+     * newer Android versions the user may see two confirmations in a
+     * row. That's expected; it's not something we can skip, since the
+     * system-level one is enforced by Android itself, not by us.
+     */
+    private fun confirmAndDeleteFolders(folders: List<GalleryFolder>) {
+
+        val allUris = folders.flatMap { folder -> folder.imageList.map { it.uri } }
+
+        if (allUris.isEmpty()) {
+            Toast.makeText(requireContext(), "No images to delete", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("Delete ${allUris.size} item${if (allUris.size > 1) "s" else ""}?")
+            .setMessage("This will permanently delete the selected items from your device. This cannot be undone.")
+            .setNegativeButton("Cancel", null)
+            .setPositiveButton("Delete") { _, _ ->
+                viewModel.deleteImages(requireContext(), allUris) { result ->
+                    handleDeleteResult(result)
+                }
+            }
+            .show()
+    }
+
+    private fun handleDeleteResult(result: com.example.mygallery.model.DeleteResult) {
+        when (result) {
+
+            is com.example.mygallery.model.DeleteResult.Success -> {
+                onDeleteFinished()
+            }
+
+            is com.example.mygallery.model.DeleteResult.ConfirmDelete -> {
+                pendingDeleteRetryUris = null
+                deleteIntentSenderLauncher.launch(
+                    androidx.activity.result.IntentSenderRequest.Builder(result.intentSender).build()
+                )
+            }
+
+            is com.example.mygallery.model.DeleteResult.GrantPermissionThenRetry -> {
+                pendingDeleteRetryUris = result.remainingUris
+                deleteIntentSenderLauncher.launch(
+                    androidx.activity.result.IntentSenderRequest.Builder(result.intentSender).build()
+                )
+            }
+
+            is com.example.mygallery.model.DeleteResult.Error -> {
+                Toast.makeText(
+                    requireContext(),
+                    "Delete failed: ${result.message}",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }
+
+    private fun onDeleteFinished() {
+        Toast.makeText(requireContext(), "Deleted", Toast.LENGTH_SHORT).show()
+        viewModel.exitSelectionMode()
+        viewModel.loadFolders(requireContext())
+    }
+
+
+    private fun shareFolders(folders: List<GalleryFolder>) {
+
+        val uris = ArrayList<android.net.Uri>()
+        folders.forEach { folder ->
+            folder.imageList.forEach { image ->
+                uris.add(image.uri)
+            }
+        }
+
+        if (uris.isEmpty()) {
+            Toast.makeText(requireContext(), "No images to share", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val shareIntent =
+            android.content.Intent(android.content.Intent.ACTION_SEND_MULTIPLE).apply {
+                type = "image/*"
+                putParcelableArrayListExtra(android.content.Intent.EXTRA_STREAM, uris)
+                // Without this flag, the app the user picks (WhatsApp, Gmail,
+                // etc.) won't actually have permission to read our content://
+                // URIs, and the share will fail or show broken images.
+                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+
+        startActivity(
+            android.content.Intent.createChooser(shareIntent, "Share ${uris.size} images")
+        )
+
     }
 
     private fun showAlbumDetailsDialog(folders: List<GalleryFolder>) {

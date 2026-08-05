@@ -1,10 +1,12 @@
 package com.example.mygallery.viewmodel
 
 import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.mygallery.model.DeleteResult
 import com.example.mygallery.model.GalleryFolder
 import com.example.mygallery.repository.GalleryRepository
 import com.example.mygallery.ui.state.GalleryUiState
@@ -123,6 +125,22 @@ class GalleryViewModel(val repository: GalleryRepository) : ViewModel() {
     fun getSelectedFolders(): List<GalleryFolder> {
         val selectedNames = _selectedFolderNames.value ?: emptySet()
         return allAlbums.filter { it.folderName in selectedNames }
+    }
+
+
+    // ---------- Delete ----------
+
+    /**
+     * Thin wrapper around the Repository's deleteImages(). Kept as a
+     * plain callback (not LiveData) since this is a one-shot action,
+     * not ongoing screen state — the Fragment just needs to know once
+     * what happened, not observe it continuously.
+     */
+    fun deleteImages(context: Context, uris: List<Uri>, onResult: (DeleteResult) -> Unit) {
+        viewModelScope.launch {
+            val result = repository.deleteImages(context, uris)
+            onResult(result)
+        }
     }
 
 }

@@ -123,7 +123,7 @@
             android:id="@+id/btnGridView"
             android:layout_width="40dp"
             android:layout_height="match_parent"
-            android:background="@drawable/bg_toggle_selected"
+            android:background="@android:color/transparent"
             android:src="@drawable/ic_grid" />
 
     </LinearLayout>

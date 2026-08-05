@@ -1,9 +1,13 @@
 package com.example.mygallery.repository
 
+import android.app.RecoverableSecurityException
 import android.content.ContentUris
 import android.content.Context
+import android.net.Uri
+import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import com.example.mygallery.model.DeleteResult
 import com.example.mygallery.model.GalleryFolder
 import com.example.mygallery.model.ImageModel
 import kotlinx.coroutines.Dispatchers
@@ -176,4 +180,75 @@ class GalleryRepository {
             it.folderName.contains(query, ignoreCase = true)
         }
     }
+
+
+
+    /**
+     * Attempts to delete the given images, handling the 3 different
+     * Android version behaviors described in DeleteResult's docs.
+     *
+     * This function ITSELF never shows any UI — it only ever returns a
+     * result describing what (if anything) the Fragment needs to do
+     * next (e.g. launch a system confirmation dialog).
+     */
+    suspend fun deleteImages(context: Context, uris: List<Uri>): DeleteResult {
+
+        return withContext(Dispatchers.IO) {
+
+            when {
+
+                // Android 11+ : one batched system confirmation covers
+                // ALL uris. If the user agrees, Android deletes them —
+                // we do not need to call delete() ourselves afterward.
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> {
+                    try {
+                        val pendingIntent =
+                            MediaStore.createDeleteRequest(context.contentResolver, uris)
+                        DeleteResult.ConfirmDelete(pendingIntent.intentSender)
+                    } catch (e: Exception) {
+                        DeleteResult.Error(e.message ?: "Could not request delete")
+                    }
+                }
+
+                // Android 10 exactly: no batch API exists yet. We try
+                // deleting directly; the FIRST file we don't have
+                // standing permission for throws a
+                // RecoverableSecurityException containing a one-file
+                // permission prompt. We surface that + the remaining
+                // untried uris so the Fragment can retry after the
+                // user grants it.
+                Build.VERSION.SDK_INT == Build.VERSION_CODES.Q -> {
+                    val remaining = uris.toMutableList()
+                    try {
+                        for (uri in uris) {
+                            context.contentResolver.delete(uri, null, null)
+                            remaining.remove(uri)
+                        }
+                        DeleteResult.Success
+                    } catch (e: RecoverableSecurityException) {
+                        DeleteResult.GrantPermissionThenRetry(
+                            e.userAction.actionIntent.intentSender,
+                            remaining
+                        )
+                    } catch (e: Exception) {
+                        DeleteResult.Error(e.message ?: "Delete failed")
+                    }
+                }
+
+                // API 24-28: no Scoped Storage restrictions yet — direct
+                // delete works without any extra confirmation.
+                else -> {
+                    try {
+                        uris.forEach { uri -> context.contentResolver.delete(uri, null, null) }
+                        DeleteResult.Success
+                    } catch (e: Exception) {
+                        DeleteResult.Error(e.message ?: "Delete failed")
+                    }
+                }
+            }
+        }
+    }
+
+
+
 }
