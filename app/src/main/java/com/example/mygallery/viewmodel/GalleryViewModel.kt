@@ -10,6 +10,7 @@ import com.example.mygallery.model.DeleteResult
 import com.example.mygallery.model.GalleryFolder
 import com.example.mygallery.repository.GalleryRepository
 import com.example.mygallery.ui.state.GalleryUiState
+import com.example.mygallery.utils.PinPreferences
 import kotlinx.coroutines.launch
 
 class GalleryViewModel(val repository: GalleryRepository) : ViewModel() {
@@ -48,6 +49,15 @@ class GalleryViewModel(val repository: GalleryRepository) : ViewModel() {
             _uiState.value = GalleryUiState.Loading // Loading state
 
             val folderList = repository.getAllFolders(context)
+
+
+            // Pinned folders float to the top. sortedByDescending on a
+            // Boolean puts `true` (pinned) before `false` — a common
+            // small trick worth remembering.
+            val sortedList = folderList.sortedByDescending { folder ->
+                PinPreferences.isPinned(context, folder.folderName)
+            }
+
 
             // Save original list
             allAlbums = folderList

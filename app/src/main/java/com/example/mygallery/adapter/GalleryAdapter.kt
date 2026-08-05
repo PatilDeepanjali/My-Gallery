@@ -134,6 +134,13 @@ class GalleryAdapter(
                     .into(holder.binding.imgAlbum)
 
                 bindCheckbox(holder.binding.ivCheckbox, isSelected)
+
+
+                holder.binding.imgPin.visibility =
+                    if (com.example.mygallery.utils.PinPreferences.isPinned(holder.itemView.context, folder.folderName))
+                        View.VISIBLE else View.GONE
+
+
             }
         }
     }

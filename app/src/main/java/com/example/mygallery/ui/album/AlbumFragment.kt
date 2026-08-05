@@ -337,6 +337,20 @@ class AlbumFragment : Fragment() {
             is GalleryUiState.Success -> {
                 binding.recyclerAlbums.visibility = View.VISIBLE
 
+                // Show the hint banner only when it's actually relevant
+                // (at least one pinned album) and the user hasn't
+                // already dismissed it permanently.
+                val hasPinnedAlbum = state.folder.any { folder ->
+                    com.example.mygallery.utils.PinPreferences.isPinned(requireContext(), folder.folderName)
+                }
+                binding.pinnedBanner.visibility =
+                    if (hasPinnedAlbum && !com.example.mygallery.utils.PinPreferences.isBannerDismissed(requireContext())) {
+                        View.VISIBLE
+                    } else {
+                        View.GONE
+                    }
+
+
                 galleryAdapter = GalleryAdapter(
                     isGridView,
                     state.folder.toMutableList(),
@@ -416,7 +430,12 @@ class AlbumFragment : Fragment() {
         when (action) {
 
             AlbumAction.PIN -> {
-                Toast.makeText(requireContext(), "Pin — coming soon", Toast.LENGTH_SHORT).show()
+                folders.forEach { folder ->
+                    com.example.mygallery.utils.PinPreferences.togglePin(requireContext(), folder.folderName)
+                }
+                viewModel.exitSelectionMode()
+                viewModel.loadFolders(requireContext())
+
             }
 
             AlbumAction.SHARE -> {

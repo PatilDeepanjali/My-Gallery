@@ -5,7 +5,7 @@ import java.util.Date
 import java.util.Locale
 
 object DateUtils {
-    public fun formatDate(time: Long): String {
+     fun formatDate(time: Long): String {
 
         val formatter =
             SimpleDateFormat("MMMM dd", Locale.getDefault())
@@ -13,7 +13,7 @@ object DateUtils {
         return formatter.format(Date(time * 1000))
     }
 
-    public fun formatTime(time: Long): String {
+     fun formatTime(time: Long): String {
 
         val formatter =
             SimpleDateFormat("HH:mm", Locale.getDefault())

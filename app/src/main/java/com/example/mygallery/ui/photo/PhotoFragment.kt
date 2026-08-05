@@ -14,6 +14,7 @@ import com.example.mygallery.databinding.FragmentPhotoBinding
 import com.example.mygallery.model.ImageModel
 import com.example.mygallery.ui.photo.PhotoAction
 import com.example.mygallery.repository.GalleryRepository
+import com.example.mygallery.ui.photo.LayoutStyleBottomSheet
 import com.example.mygallery.ui.photo.PhotoActionPopup
 import com.example.mygallery.ui.photo.PhotoPreviewFragment
 import com.example.mygallery.ui.state.PhotosUiState
@@ -39,6 +40,8 @@ class PhotoFragment : Fragment() {
     private var isGridView = true
 
     private val gridSpanCount = 3
+
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -66,6 +69,7 @@ class PhotoFragment : Fragment() {
         binding.tvTitle.text = folderName ?: "Photos"
 
         binding.recyclerPhotos.layoutManager = buildGridLayoutManager()
+
 
         binding.btnBack.setOnClickListener {
             parentFragmentManager.popBackStack()
@@ -99,6 +103,18 @@ class PhotoFragment : Fragment() {
 
                     PhotoAction.LAYOUT_STYLE -> {
 
+                        val sheet = LayoutStyleBottomSheet(isGridView)
+
+                        sheet.setListener(object : LayoutStyleBottomSheet.OnLayoutStyleSelected {
+
+                            override fun onLayoutSelected(isGrid: Boolean) {
+
+                                applyLayoutStyle(isGrid)
+
+                            }
+                        })
+
+                        sheet.show(parentFragmentManager, "layout_style")
                     }
 
                     PhotoAction.COLUMN -> {
@@ -125,19 +141,11 @@ class PhotoFragment : Fragment() {
         viewModel.loadPhotos(requireContext(), folderName)
 
         binding.btnGridView.setOnClickListener {
-            isGridView = true
-            binding.recyclerPhotos.layoutManager = buildGridLayoutManager()
-            if (::photosAdapter.isInitialized) {
-                photosAdapter.setViewMode(true)
-            }
+            applyLayoutStyle(true)
         }
 
         binding.btnListView.setOnClickListener {
-            isGridView = false
-            binding.recyclerPhotos.layoutManager = LinearLayoutManager(requireContext())
-            if (::photosAdapter.isInitialized) {
-                photosAdapter.setViewMode(false)
-            }
+            applyLayoutStyle(false)
         }
     }
 
@@ -156,6 +164,25 @@ class PhotoFragment : Fragment() {
 
         return layoutManager
     }
+
+
+    private fun applyLayoutStyle(isGrid: Boolean) {
+
+        isGridView = isGrid
+
+        if (::photosAdapter.isInitialized) {
+
+            photosAdapter.setViewMode(isGrid)
+
+            binding.recyclerPhotos.layoutManager =
+                if (isGrid) {
+                    buildGridLayoutManager()
+                } else {
+                    LinearLayoutManager(requireContext())
+                }
+        }
+    }
+
 
     private fun renderState(state: PhotosUiState) {
 
