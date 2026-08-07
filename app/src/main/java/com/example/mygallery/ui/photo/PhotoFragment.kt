@@ -14,9 +14,13 @@ import com.example.mygallery.databinding.FragmentPhotoBinding
 import com.example.mygallery.model.ImageModel
 import com.example.mygallery.ui.photo.PhotoAction
 import com.example.mygallery.repository.GalleryRepository
+import com.example.mygallery.ui.photo.ColumnBottomSheet
 import com.example.mygallery.ui.photo.LayoutStyleBottomSheet
 import com.example.mygallery.ui.photo.PhotoActionPopup
 import com.example.mygallery.ui.photo.PhotoPreviewFragment
+import com.example.mygallery.ui.photo.SortBottomSheet
+import com.example.mygallery.ui.photo.SortOrder
+import com.example.mygallery.ui.photo.SortType
 import com.example.mygallery.ui.state.PhotosUiState
 import com.example.mygallery.viewmodel.PhotosViewModel
 import com.example.mygallery.viewmodel.PhotosViewModelFactory
@@ -39,7 +43,12 @@ class PhotoFragment : Fragment() {
     private var folderName: String? = null
     private var isGridView = true
 
-    private val gridSpanCount = 3
+    private var gridSpanCount = 3
+
+    private var currentSortType = SortType.DATE_TAKEN
+
+    private var currentSortOrder = SortOrder.DESCENDING
+
 
 
 
@@ -95,6 +104,33 @@ class PhotoFragment : Fragment() {
 
                     PhotoAction.SORT -> {
 
+                        val sheet = SortBottomSheet(
+                            currentSortType,
+                            currentSortOrder
+                        )
+
+                        sheet.setListener(object : SortBottomSheet.OnSortSelected {
+
+                            override fun onSortSelected(
+                                sortType: SortType,
+                                sortOrder: SortOrder
+                            ) {
+
+                                currentSortType = sortType
+                                currentSortOrder = sortOrder
+
+                                viewModel.loadPhotos(
+                                    requireContext(),
+                                    folderName,
+                                    currentSortType,
+                                    currentSortOrder
+                                )
+
+                            }
+
+                        })
+
+                        sheet.show(parentFragmentManager, "sort")
                     }
 
                     PhotoAction.FILTER -> {
@@ -119,6 +155,20 @@ class PhotoFragment : Fragment() {
 
                     PhotoAction.COLUMN -> {
 
+                        val sheet = ColumnBottomSheet(gridSpanCount)
+
+                        sheet.setListener(object : ColumnBottomSheet.OnColumnSelected {
+
+                            override fun onColumnSelected(column: Int) {
+
+                                applyColumn(column)
+
+                            }
+
+                        })
+
+                        sheet.show(parentFragmentManager, "column")
+
                     }
 
                     PhotoAction.SLIDE_SHOW -> {
@@ -138,7 +188,12 @@ class PhotoFragment : Fragment() {
             renderState(state)
         }
 
-        viewModel.loadPhotos(requireContext(), folderName)
+        viewModel.loadPhotos(
+            requireContext(),
+            folderName,
+            currentSortType,
+            currentSortOrder
+        )
 
         binding.btnGridView.setOnClickListener {
             applyLayoutStyle(true)
@@ -182,6 +237,22 @@ class PhotoFragment : Fragment() {
                 }
         }
     }
+
+
+    private fun applyColumn(column: Int) {
+
+        gridSpanCount = column
+
+        if (isGridView) {
+
+            binding.recyclerPhotos.layoutManager =
+                buildGridLayoutManager()
+
+        }
+
+    }
+
+
 
 
     private fun renderState(state: PhotosUiState) {

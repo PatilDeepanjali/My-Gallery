@@ -78,10 +78,10 @@
             android:insetBottom="0dp"
             android:text="Cancel"
             android:textAllCaps="false"
-            android:textColor="#278BE3"
+            android:textColor="@color/blue_100"
             android:textSize="16sp"
             app:cornerRadius="14dp"
-            app:strokeColor="#278BE3"
+            app:strokeColor="@color/blue_100"
             app:strokeWidth="1dp" />
 
         <com.google.android.material.button.MaterialButton
@@ -90,7 +90,7 @@
             android:layout_height="44dp"
             android:layout_marginStart="8dp"
             android:layout_weight="1"
-            android:backgroundTint="#278BE3"
+            android:backgroundTint="@color/blue_100"
             android:insetTop="0dp"
             android:insetBottom="0dp"
             android:text="Create"

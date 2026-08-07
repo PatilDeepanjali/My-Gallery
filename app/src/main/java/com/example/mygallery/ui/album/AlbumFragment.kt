@@ -350,6 +350,10 @@ class AlbumFragment : Fragment() {
                         View.GONE
                     }
 
+                binding.btnDismissBanner.setOnClickListener {
+
+                    binding.pinnedBanner.visibility = View.GONE
+                }
 
                 galleryAdapter = GalleryAdapter(
                     isGridView,

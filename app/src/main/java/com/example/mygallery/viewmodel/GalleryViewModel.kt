@@ -50,7 +50,6 @@ class GalleryViewModel(val repository: GalleryRepository) : ViewModel() {
 
             val folderList = repository.getAllFolders(context)
 
-
             // Pinned folders float to the top. sortedByDescending on a
             // Boolean puts `true` (pinned) before `false` — a common
             // small trick worth remembering.
@@ -60,15 +59,15 @@ class GalleryViewModel(val repository: GalleryRepository) : ViewModel() {
 
 
             // Save original list
-            allAlbums = folderList
+            allAlbums = sortedList
 
             // Display all albums initially
-            _filteredAlbums.value = folderList
+            _filteredAlbums.value = sortedList
 
             _uiState.value = if (folderList.isEmpty()) {
                 GalleryUiState.Empty
             } else {
-                GalleryUiState.Success(folderList)
+                GalleryUiState.Success(sortedList)
             }
 
         }
