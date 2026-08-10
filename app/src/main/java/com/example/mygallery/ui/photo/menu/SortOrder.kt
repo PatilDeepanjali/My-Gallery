@@ -1,4 +1,4 @@
-package com.example.mygallery.ui.photo
+package com.example.mygallery.ui.photo.menu
 
 enum class SortOrder {
 

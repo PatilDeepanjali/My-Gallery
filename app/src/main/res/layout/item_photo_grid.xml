@@ -1,34 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
+
+<androidx.cardview.widget.CardView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/cardPhoto"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content">
+    android:layout_height="85dp"
+    android:layout_margin="2dp"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="0dp">
 
-    <!--
-        app:layout_constraintDimensionRatio="1:1" forces this CardView's
-        height to always equal its width — this is what makes each grid
-        tile a perfect square no matter how many columns the grid has.
-    -->
-    <androidx.cardview.widget.CardView
-        android:id="@+id/cardPhoto"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:layout_margin="2dp"
-        app:cardCornerRadius="8dp"
-        app:cardElevation="0dp"
-        app:layout_constraintDimensionRatio="1:1"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="85dp">
 
+        <!-- Photo -->
         <ImageView
             android:id="@+id/imgPhoto"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:scaleType="centerCrop"
-            android:contentDescription="@string/photo_thumbnail" />
+            android:contentDescription="@string/photo_thumbnail"
+            tools:src="@tools:sample/backgrounds/scenic" />
 
-    </androidx.cardview.widget.CardView>
+        <!-- Selection Checkbox -->
+        <ImageView
+            android:id="@+id/iv_checkbox"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="top|end"
+            android:layout_margin="6dp"
+            android:src="@drawable/ic_check_circle_filled"
+            android:visibility="gone"
+            android:contentDescription="@string/photo_selection"
+            tools:visibility="visible" />
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+    </FrameLayout>
+
+</androidx.cardview.widget.CardView>

@@ -22,6 +22,165 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
+
+    <!-- ================= SELECTION HEADER ================= -->
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/selectionHeader"
+        android:layout_width="0dp"
+        android:layout_height="56dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <!-- Exit Selection -->
+        <ImageButton
+            android:id="@+id/btnExitSelection"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="8dp"
+            android:background="@android:color/transparent"
+            android:src="@drawable/ic_close"
+            android:contentDescription="Exit selection"
+            app:tint="@color/onBackground"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent" />
+
+        <!-- Selected count -->
+        <TextView
+            android:id="@+id/tvSelectedCount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:text="1 / 30"
+            android:textColor="@color/onBackground"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            app:layout_constraintStart_toEndOf="@id/btnExitSelection"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent" />
+
+        <!-- Selected size -->
+        <TextView
+            android:id="@+id/tvSelectedSize"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:text="191.2 MB"
+            android:textColor="@color/onSurfaceVariant"
+            android:textSize="12sp"
+            app:layout_constraintStart_toEndOf="@id/tvSelectedCount"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent" />
+
+        <!-- Selection More Menu -->
+        <ImageButton
+            android:id="@+id/btnSelectionMenu"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginEnd="16dp"
+            android:background="@android:color/transparent"
+            android:src="@drawable/ic_more_option"
+            android:contentDescription="@string/more_options"
+            app:tint="@color/onBackground"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+
+
+    <!-- Selection Filters -->
+
+    <HorizontalScrollView
+        android:id="@+id/selectionFilters"
+        android:layout_width="0dp"
+        android:layout_height="44dp"
+        android:layout_marginStart="12dp"
+        android:layout_marginTop="4dp"
+        android:layout_marginEnd="12dp"
+        android:scrollbars="none"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/selectionHeader"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnFilterAll"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="✓ All"
+                android:textAllCaps="false"
+                android:textSize="12sp"
+                android:textColor="@android:color/white"
+                app:backgroundTint="@color/blue_100"
+                app:cornerRadius="8dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnFilterImages"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginStart="6dp"
+                android:text="Images"
+                android:textAllCaps="false"
+                android:textSize="12sp"
+                app:cornerRadius="8dp"
+                app:strokeWidth="1dp"
+                app:strokeColor="@color/onSurfaceVariant"
+                app:backgroundTint="@color/background" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnFilterVideos"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginStart="6dp"
+                android:text="Videos"
+                android:textAllCaps="false"
+                android:textSize="12sp"
+                app:cornerRadius="8dp"
+                app:strokeWidth="1dp"
+                app:strokeColor="@color/onSurfaceVariant"
+                app:backgroundTint="@color/background" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnFilterFavourite"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginStart="6dp"
+                android:text="Fav"
+                android:textAllCaps="false"
+                android:textSize="12sp"
+                app:cornerRadius="8dp"
+                app:strokeWidth="1dp"
+                app:strokeColor="@color/onSurfaceVariant"
+                app:backgroundTint="@color/background" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnFilterScreenshots"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginStart="6dp"
+                android:text="Screenshots"
+                android:textAllCaps="false"
+                android:textSize="12sp"
+                app:cornerRadius="8dp"
+                app:strokeWidth="1dp"
+                app:strokeColor="@color/onSurfaceVariant"
+                app:backgroundTint="@color/background" />
+
+        </LinearLayout>
+
+    </HorizontalScrollView>
+
     <!-- Album name (set dynamically in code) -->
     <TextView
         android:id="@+id/tvTitle"
@@ -90,6 +249,16 @@
 
     </LinearLayout>
 
+
+
+    <androidx.constraintlayout.widget.Barrier
+        android:id="@+id/contentTopBarrier"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:barrierDirection="bottom"
+        app:constraint_referenced_ids="viewToggleGroup,selectionFilters"
+        app:barrierAllowsGoneWidgets="false" />
+
     <!-- Photos RecyclerView -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerPhotos"
@@ -104,8 +273,7 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/viewToggleGroup" />
-
+        app:layout_constraintTop_toBottomOf="@id/contentTopBarrier" />
     <!-- Loading state -->
     <ProgressBar
         android:id="@+id/progressBar"
@@ -115,7 +283,7 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/viewToggleGroup"
+        app:layout_constraintTop_toBottomOf="@id/contentTopBarrier"
         tools:visibility="visible" />
 
     <!-- Empty state: no photos in this album -->

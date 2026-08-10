@@ -1,4 +1,4 @@
-package com.example.mygallery.ui.photo
+package com.example.mygallery.ui.photo.preview
 
 enum class PreviewAction {
 

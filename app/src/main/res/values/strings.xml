@@ -15,4 +15,7 @@
     <string name="photo_thumbnail">Photo thumbnail</string>
     <string name="no_photos">No Photos or Videos</string>
     <string name="no_photos_illustration">Illustration shown when album has no photos</string>
+    <string name="add_album">Add album</string>
+    <string name="close">Close album</string>
+    <string name="photo_selection">Photo selection</string>
 </resources>

@@ -19,6 +19,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -27,10 +28,12 @@ import com.example.mygallery.databinding.DialogCreateAlbumBinding
 import com.example.mygallery.databinding.FragmentAlbumBinding
 import com.example.mygallery.model.GalleryFolder
 import com.example.mygallery.repository.GalleryRepository
-import com.example.mygallery.ui.photos.PhotoFragment
+import com.example.mygallery.ui.photo.PhotoFragment
 import com.example.mygallery.ui.state.GalleryUiState
+import com.example.mygallery.utils.PinPreferences
 import com.example.mygallery.viewmodel.GalleryViewModel
 import com.example.mygallery.viewmodel.GalleryViewModelFactory
+import kotlinx.coroutines.launch
 
 class AlbumFragment : Fragment() {
 
@@ -40,13 +43,17 @@ class AlbumFragment : Fragment() {
 
     private var isGridView = true
 
-
-
     // Holds the remaining URIs still needing deletion when we're on the
     // Android 10 (Q) "grant permission, then retry" path. Null means
     // we're either not mid-delete, or we're on the Android 11+ path
     // where Android deletes everything itself after confirmation.
     private var pendingDeleteRetryUris: List<android.net.Uri>? = null
+
+    // The toast shown once deletion finishes. Delete uses "Deleted";
+    // Move reuses this same delete machinery internally (Move = Copy +
+    // Delete) but should say "Moved to X" instead — this field lets
+    // both paths share one flow while showing the right message.
+    private var pendingDeleteSuccessMessage: String = "Deleted"
 
     // Launches the system's delete/permission confirmation dialog and
     // reports back whether the user allowed or denied it.
@@ -60,15 +67,11 @@ class AlbumFragment : Fragment() {
             pendingDeleteRetryUris = null
 
             if (retryUris != null) {
-                // Android 10 path: permission was just granted for one
-                // file — now actually delete the remaining ones.
                 viewModel.deleteImages(requireContext(), retryUris) { result ->
-                    handleDeleteResult(result)
+                    handleDeleteResult(result, pendingDeleteSuccessMessage)
                 }
             } else {
-                // Android 11+ path: Android already deleted the files
-                // itself once the user confirmed.
-                onDeleteFinished()
+                onDeleteFinished(pendingDeleteSuccessMessage)
             }
 
         } else {
@@ -76,9 +79,6 @@ class AlbumFragment : Fragment() {
             Toast.makeText(requireContext(), "Delete cancelled", Toast.LENGTH_SHORT).show()
         }
     }
-
-
-
 
     private val requestPermission =
         registerForActivityResult(
@@ -126,14 +126,12 @@ class AlbumFragment : Fragment() {
         // Default RecyclerView Layout
         updateLayoutManager()
 
-
         // for Searching
         viewModel.filteredAlbums.observe(viewLifecycleOwner) {
             if (::galleryAdapter.isInitialized) {
                 galleryAdapter.updateList(it)
             }
         }
-
 
         viewModel.uiState.observe(viewLifecycleOwner) { state ->
             renderState(state)
@@ -176,6 +174,14 @@ class AlbumFragment : Fragment() {
             checkPermission()
         }
 
+        // Pin banner: dismiss permanently, hide immediately.
+        // This listener was previously missing entirely — that's why
+        // tapping the X did nothing.
+        binding.btnDismissBanner.setOnClickListener {
+            PinPreferences.dismissBanner(requireContext())
+            binding.pinnedBanner.visibility = View.GONE
+        }
+
         // Grid Button
         binding.btnGridView.setOnClickListener {
 
@@ -189,7 +195,6 @@ class AlbumFragment : Fragment() {
             }
         }
 
-
         // List Button
         binding.btnListView.setOnClickListener {
 
@@ -202,7 +207,6 @@ class AlbumFragment : Fragment() {
                 galleryAdapter.setViewMode(false)
             }
         }
-
 
         // Search Faeture
         binding.searchAlbums.addTextChangedListener(object : TextWatcher {
@@ -227,10 +231,6 @@ class AlbumFragment : Fragment() {
             override fun afterTextChanged(s: Editable?) {
             }
         })
-
-
-
-
 
         binding.btnAdd.setOnClickListener {
 
@@ -301,7 +301,6 @@ class AlbumFragment : Fragment() {
         }
     }
 
-
     private fun updateLayoutManager() {
 
         binding.recyclerAlbums.layoutManager =
@@ -314,11 +313,11 @@ class AlbumFragment : Fragment() {
 
     private fun renderState(state: GalleryUiState) {
 
-
         binding.progressBar.visibility = View.GONE
         binding.layoutEmptyState.visibility = View.GONE
         binding.layoutPermissionDenied.visibility = View.GONE
         binding.recyclerAlbums.visibility = View.GONE
+        binding.pinnedBanner.visibility = View.GONE
 
         when (state) {
 
@@ -341,19 +340,14 @@ class AlbumFragment : Fragment() {
                 // (at least one pinned album) and the user hasn't
                 // already dismissed it permanently.
                 val hasPinnedAlbum = state.folder.any { folder ->
-                    com.example.mygallery.utils.PinPreferences.isPinned(requireContext(), folder.folderName)
+                    PinPreferences.isPinned(requireContext(), folder.folderName)
                 }
                 binding.pinnedBanner.visibility =
-                    if (hasPinnedAlbum && !com.example.mygallery.utils.PinPreferences.isBannerDismissed(requireContext())) {
+                    if (hasPinnedAlbum && !PinPreferences.isBannerDismissed(requireContext())) {
                         View.VISIBLE
                     } else {
                         View.GONE
                     }
-
-                binding.btnDismissBanner.setOnClickListener {
-
-                    binding.pinnedBanner.visibility = View.GONE
-                }
 
                 galleryAdapter = GalleryAdapter(
                     isGridView,
@@ -380,20 +374,11 @@ class AlbumFragment : Fragment() {
                 )
                 binding.recyclerAlbums.adapter = galleryAdapter
 
-                // In case Success arrives WHILE already in selection mode
-                // (e.g. list refreshed after a delete), make sure the new
-                // adapter instance immediately reflects current selection.
                 renderSelectionState()
             }
         }
     }
 
-    /**
-     * Single place that reacts to BOTH isSelectionMode and
-     * selectedFolderNames changing — keeps the toolbar swap, the
-     * toolbar's count/size text, and the adapter's checkboxes all in
-     * sync with one source of truth (the ViewModel).
-     */
     private fun renderSelectionState() {
 
         val isSelectionMode = viewModel.isSelectionMode.value ?: false
@@ -423,28 +408,19 @@ class AlbumFragment : Fragment() {
         }
     }
 
-    /**
-     * Handles whichever action the user picked from the popup, applied
-     * to ALL currently selected folders. Most of these are stubs for
-     * now (Toast only) — each one is its own real feature we'll build
-     * properly in a later step. Details is implemented fully since it
-     * only needs data we already have.
-     */
     private fun handleAlbumAction(action: AlbumAction, folders: List<GalleryFolder>) {
         when (action) {
 
             AlbumAction.PIN -> {
                 folders.forEach { folder ->
-                    com.example.mygallery.utils.PinPreferences.togglePin(requireContext(), folder.folderName)
+                    PinPreferences.togglePin(requireContext(), folder.folderName)
                 }
                 viewModel.exitSelectionMode()
                 viewModel.loadFolders(requireContext())
-
             }
 
             AlbumAction.SHARE -> {
                 shareFolders(folders)
-
             }
 
             AlbumAction.DELETE -> {
@@ -452,28 +428,100 @@ class AlbumFragment : Fragment() {
             }
 
             AlbumAction.COPY -> {
-                Toast.makeText(requireContext(), "Copy — coming soon", Toast.LENGTH_SHORT).show()
+                showAlbumPicker(AlbumPickerBottomSheet.Mode.COPY, folders) { destinationName ->
+                    performCopy(folders, destinationName)
+                }
             }
 
             AlbumAction.MOVE -> {
-                Toast.makeText(requireContext(), "Move — coming soon", Toast.LENGTH_SHORT).show()
+                showAlbumPicker(AlbumPickerBottomSheet.Mode.MOVE, folders) { destinationName ->
+                    performMove(folders, destinationName)
+                }
             }
 
             AlbumAction.DETAILS -> {
-
                 showAlbumDetailsDialog(folders)
             }
         }
     }
 
+    private fun showAlbumPicker(
+        mode: AlbumPickerBottomSheet.Mode,
+        sourceFolders: List<GalleryFolder>,
+        onChosen: (destinationAlbumName: String) -> Unit
+    ) {
+        val excludedNames = sourceFolders.map { it.folderName }
+
+        val sheet = AlbumPickerBottomSheet.newInstance(mode, excludedNames)
+        sheet.onAlbumSelected = { destinationName ->
+            onChosen(destinationName)
+        }
+        sheet.show(childFragmentManager, "AlbumPicker")
+    }
+
+    private fun performCopy(folders: List<GalleryFolder>, destinationAlbumName: String) {
+
+        val uris = folders.flatMap { folder -> folder.imageList.map { it.uri } }
+
+        if (uris.isEmpty()) {
+            Toast.makeText(requireContext(), "No images to copy", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            val result = viewModel.repository.copyImages(requireContext(), uris, destinationAlbumName)
+
+            if (result.isSuccess) {
+                Toast.makeText(
+                    requireContext(),
+                    "Copied ${result.getOrNull()} item(s) to $destinationAlbumName",
+                    Toast.LENGTH_SHORT
+                ).show()
+                viewModel.exitSelectionMode()
+                viewModel.loadFolders(requireContext())
+            } else {
+                Toast.makeText(
+                    requireContext(),
+                    "Copy failed: ${result.exceptionOrNull()?.message}",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }
+
     /**
-     * Shows our OWN confirmation dialog first (app-level "are you
-     * sure?"). Only if the user confirms do we go on to Android's
-     * OWN system-level confirmation (required on API 29+) — so on
-     * newer Android versions the user may see two confirmations in a
-     * row. That's expected; it's not something we can skip, since the
-     * system-level one is enforced by Android itself, not by us.
+     * Move = Copy to the destination, THEN delete the originals. This
+     * reuses copyImages() (no special permission handling needed, since
+     * we're only ever creating new files) AND our existing delete flow
+     * (which already handles all 3 Android version cases correctly) —
+     * so Move needs zero new low-level file-permission logic of its own.
      */
+    private fun performMove(folders: List<GalleryFolder>, destinationAlbumName: String) {
+
+        val uris = folders.flatMap { folder -> folder.imageList.map { it.uri } }
+
+        if (uris.isEmpty()) {
+            Toast.makeText(requireContext(), "No images to move", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            val copyResult = viewModel.repository.copyImages(requireContext(), uris, destinationAlbumName)
+
+            if (copyResult.isSuccess) {
+                viewModel.deleteImages(requireContext(), uris) { result ->
+                    handleDeleteResult(result, "Moved to $destinationAlbumName")
+                }
+            } else {
+                Toast.makeText(
+                    requireContext(),
+                    "Move failed: ${copyResult.exceptionOrNull()?.message}",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }
+
     private fun confirmAndDeleteFolders(folders: List<GalleryFolder>) {
 
         val allUris = folders.flatMap { folder -> folder.imageList.map { it.uri } }
@@ -489,21 +537,22 @@ class AlbumFragment : Fragment() {
             .setNegativeButton("Cancel", null)
             .setPositiveButton("Delete") { _, _ ->
                 viewModel.deleteImages(requireContext(), allUris) { result ->
-                    handleDeleteResult(result)
+                    handleDeleteResult(result, "Deleted")
                 }
             }
             .show()
     }
 
-    private fun handleDeleteResult(result: com.example.mygallery.model.DeleteResult) {
+    private fun handleDeleteResult(result: com.example.mygallery.model.DeleteResult, successMessage: String) {
         when (result) {
 
             is com.example.mygallery.model.DeleteResult.Success -> {
-                onDeleteFinished()
+                onDeleteFinished(successMessage)
             }
 
             is com.example.mygallery.model.DeleteResult.ConfirmDelete -> {
                 pendingDeleteRetryUris = null
+                pendingDeleteSuccessMessage = successMessage
                 deleteIntentSenderLauncher.launch(
                     androidx.activity.result.IntentSenderRequest.Builder(result.intentSender).build()
                 )
@@ -511,6 +560,7 @@ class AlbumFragment : Fragment() {
 
             is com.example.mygallery.model.DeleteResult.GrantPermissionThenRetry -> {
                 pendingDeleteRetryUris = result.remainingUris
+                pendingDeleteSuccessMessage = successMessage
                 deleteIntentSenderLauncher.launch(
                     androidx.activity.result.IntentSenderRequest.Builder(result.intentSender).build()
                 )
@@ -526,12 +576,11 @@ class AlbumFragment : Fragment() {
         }
     }
 
-    private fun onDeleteFinished() {
-        Toast.makeText(requireContext(), "Deleted", Toast.LENGTH_SHORT).show()
+    private fun onDeleteFinished(successMessage: String) {
+        Toast.makeText(requireContext(), successMessage, Toast.LENGTH_SHORT).show()
         viewModel.exitSelectionMode()
         viewModel.loadFolders(requireContext())
     }
-
 
     private fun shareFolders(folders: List<GalleryFolder>) {
 
@@ -551,16 +600,12 @@ class AlbumFragment : Fragment() {
             android.content.Intent(android.content.Intent.ACTION_SEND_MULTIPLE).apply {
                 type = "image/*"
                 putParcelableArrayListExtra(android.content.Intent.EXTRA_STREAM, uris)
-                // Without this flag, the app the user picks (WhatsApp, Gmail,
-                // etc.) won't actually have permission to read our content://
-                // URIs, and the share will fail or show broken images.
                 addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
 
         startActivity(
             android.content.Intent.createChooser(shareIntent, "Share ${uris.size} images")
         )
-
     }
 
     private fun showAlbumDetailsDialog(folders: List<GalleryFolder>) {

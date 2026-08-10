@@ -1,4 +1,4 @@
-package com.example.mygallery.ui.photo
+package com.example.mygallery.ui.photo.menu
 
 import android.content.Context
 import android.graphics.Color
@@ -10,7 +10,6 @@ import android.widget.PopupWindow
 import com.example.mygallery.R
 import com.example.mygallery.databinding.ItemPhotoPopupActionBinding
 import com.example.mygallery.databinding.PopupPhotoActionsBinding
-import com.example.mygallery.ui.photo.PhotoAction
 import com.example.mygallery.model.PopupMenuItem
 
 object PhotoActionPopup {

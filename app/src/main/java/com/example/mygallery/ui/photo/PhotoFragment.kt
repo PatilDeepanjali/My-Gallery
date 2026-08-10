@@ -1,4 +1,4 @@
-package com.example.mygallery.ui.photos
+package com.example.mygallery.ui.photo
 
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -12,20 +12,19 @@ import com.example.mygallery.R
 import com.example.mygallery.adapter.PhotosAdapter
 import com.example.mygallery.databinding.FragmentPhotoBinding
 import com.example.mygallery.model.ImageModel
-import com.example.mygallery.ui.photo.PhotoAction
+import com.example.mygallery.ui.photo.menu.PhotoAction
 import com.example.mygallery.repository.GalleryRepository
-import com.example.mygallery.ui.photo.ColumnBottomSheet
-import com.example.mygallery.ui.photo.LayoutStyleBottomSheet
-import com.example.mygallery.ui.photo.PhotoActionPopup
-import com.example.mygallery.ui.photo.PhotoPreviewFragment
-import com.example.mygallery.ui.photo.SortBottomSheet
-import com.example.mygallery.ui.photo.SortOrder
-import com.example.mygallery.ui.photo.SortType
+import com.example.mygallery.ui.photo.menu.ColumnBottomSheet
+import com.example.mygallery.ui.photo.menu.LayoutStyleBottomSheet
+import com.example.mygallery.ui.photo.menu.PhotoActionPopup
+import com.example.mygallery.ui.photo.menu.SortBottomSheet
+import com.example.mygallery.ui.photo.menu.SortOrder
+import com.example.mygallery.ui.photo.menu.SortType
 import com.example.mygallery.ui.state.PhotosUiState
 import com.example.mygallery.viewmodel.PhotosViewModel
 import com.example.mygallery.viewmodel.PhotosViewModelFactory
-
-
+import com.example.mygallery.ui.photo.selection.PhotoSelectionAction
+import com.example.mygallery.ui.photo.selection.PhotoSelectionActionPopup
 
 
 class PhotoFragment : Fragment() {
@@ -43,13 +42,11 @@ class PhotoFragment : Fragment() {
     private var folderName: String? = null
     private var isGridView = true
 
-    private var gridSpanCount = 3
+    private var gridSpanCount = 4
 
     private var currentSortType = SortType.DATE_TAKEN
 
     private var currentSortOrder = SortOrder.DESCENDING
-
-
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -73,6 +70,12 @@ class PhotoFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+
+
+        binding.btnExitSelection.setOnClickListener {
+            viewModel.exitSelectionMode()
+        }
 
         // Title: the album name we were opened with.
         binding.tvTitle.text = folderName ?: "Photos"
@@ -182,10 +185,99 @@ class PhotoFragment : Fragment() {
         }
 
 
+    // For Selection Menu
 
+        binding.btnSelectionMenu.setOnClickListener {
+
+            val selectedCount =
+                viewModel.selectedPhotoIds.value?.size ?: 0
+
+            if (selectedCount == 0) {
+                return@setOnClickListener
+            }
+
+            PhotoSelectionActionPopup.show(
+                requireContext(),
+                binding.btnSelectionMenu,
+                selectedCount
+            ) { action ->
+
+                when (action) {
+
+                    PhotoSelectionAction.COPY -> {
+                        // Implement later
+                    }
+
+                    PhotoSelectionAction.MOVE -> {
+                        // Implement later
+                    }
+
+                    PhotoSelectionAction.RENAME -> {
+                        // Implement later
+                    }
+
+                    PhotoSelectionAction.FAVORITE -> {
+                        // Implement later
+                    }
+
+                    PhotoSelectionAction.OPEN_WITH -> {
+                        // Implement later
+                    }
+
+                    PhotoSelectionAction.SLIDE_SHOW -> {
+                        // Implement later
+                    }
+
+                    PhotoSelectionAction.EDIT_WITH -> {
+                        // Implement later
+                    }
+
+                    PhotoSelectionAction.SET_AS_WALLPAPER -> {
+                        // Implement later
+                    }
+
+                    PhotoSelectionAction.SHARE -> {
+                        // Implement later
+                    }
+
+                    PhotoSelectionAction.DELETE -> {
+                        // Implement later
+                    }
+
+                    PhotoSelectionAction.DETAILS -> {
+                        // Implement later
+                    }
+                }
+            }
+        }
 
         viewModel.uiState.observe(viewLifecycleOwner) { state ->
             renderState(state)
+        }
+
+        viewModel.isSelectionMode.observe(viewLifecycleOwner) { isSelecting ->
+
+            if (::photosAdapter.isInitialized) {
+                photosAdapter.setSelectionState(
+                    isSelecting,
+                    viewModel.selectedPhotoIds.value ?: emptySet()
+                )
+            }
+
+            updateSelectionMode(isSelecting)
+        }
+
+
+        viewModel.selectedPhotoIds.observe(viewLifecycleOwner) { selectedIds ->
+
+            if (::photosAdapter.isInitialized) {
+                photosAdapter.setSelectionState(
+                    viewModel.isSelectionMode.value == true,
+                    selectedIds
+                )
+            }
+
+            updateSelectionCount(selectedIds)
         }
 
         viewModel.loadPhotos(
@@ -253,7 +345,54 @@ class PhotoFragment : Fragment() {
     }
 
 
+    private fun updateSelectionMode(isSelecting: Boolean) {
 
+        if (isSelecting) {
+
+            // Hide normal header
+            binding.btnBack.visibility = View.GONE
+            binding.tvTitle.visibility = View.GONE
+            binding.tvSubtitle.visibility = View.GONE
+            binding.btnMenu.visibility = View.GONE
+            binding.viewToggleGroup.visibility = View.GONE
+
+            // Show selection header
+            binding.selectionHeader.visibility = View.VISIBLE
+            binding.selectionFilters.visibility = View.VISIBLE
+
+        } else {
+
+            // Show normal header
+            binding.btnBack.visibility = View.VISIBLE
+            binding.tvTitle.visibility = View.VISIBLE
+            binding.tvSubtitle.visibility = View.VISIBLE
+            binding.btnMenu.visibility = View.VISIBLE
+            binding.viewToggleGroup.visibility = View.VISIBLE
+
+            // Hide selection header
+            binding.selectionHeader.visibility = View.GONE
+            binding.selectionFilters.visibility = View.GONE
+        }
+    }
+
+    private fun updateSelectionCount(selectedIds: Set<Long>) {
+
+        val selectedCount = selectedIds.size
+        val totalPhotos = photoList.size
+
+        binding.tvSelectedCount.text =
+            "$selectedCount / $totalPhotos"
+
+        val selectedSize = photoList
+            .filter { it.id in selectedIds }
+            .sumOf { it.size }
+
+        binding.tvSelectedSize.text =
+            android.text.format.Formatter.formatShortFileSize(
+                requireContext(),
+                selectedSize
+            )
+    }
 
     private fun renderState(state: PhotosUiState) {
 
@@ -275,10 +414,10 @@ class PhotoFragment : Fragment() {
                 binding.recyclerPhotos.visibility = View.VISIBLE
 
 
-
                 // Photo count for the subtitle: only count actual photos,
                 // not the date header rows mixed into the same list.
-                val photoCount = state.items.count { it is com.example.mygallery.model.PhotoListItem.Photo }
+                val photoCount =
+                    state.items.count { it is com.example.mygallery.model.PhotoListItem.Photo }
                 binding.tvSubtitle.text = "$photoCount Photos"
 
 
@@ -294,35 +433,58 @@ class PhotoFragment : Fragment() {
 
                 }
 
+
+
                 photosAdapter = PhotosAdapter(
-                    isGridView,
-                    state.items
-                ) { photo, position ->
+                    isGridView = isGridView,
+                    items = state.items,
 
+                    onPhotoClick = { photo, position ->
 
-                    val previewPhoto = PhotoPreviewFragment()
+                        val previewPhoto = PhotoPreviewFragment()
 
-                    previewPhoto.arguments = Bundle().apply {
+                        previewPhoto.arguments = Bundle().apply {
 
-                        putParcelableArrayList(
-                            PhotoPreviewFragment.ARG_IMAGE_LIST,
-                            photoList
+                            putParcelableArrayList(
+                                PhotoPreviewFragment.ARG_IMAGE_LIST,
+                                photoList
+                            )
+
+                            putInt(
+                                PhotoPreviewFragment.ARG_POSITION,
+                                position
+                            )
+                        }
+
+                        parentFragmentManager.beginTransaction()
+                            .replace(
+                                R.id.frameContainer,
+                                previewPhoto
+                            )
+                            .addToBackStack(null)
+                            .commit()
+                    },
+
+                    onPhotoLongClick = { photo ->
+
+                        viewModel.enterSelectionMode(
+                            photo.image
                         )
+                    },
 
-                        putInt(
-                            PhotoPreviewFragment.ARG_POSITION,
-                            position
+                    onPhotoToggleSelect = { photo ->
+
+                        viewModel.toggleSelection(
+                            photo.image
                         )
                     }
+                )
 
 
-                    parentFragmentManager.beginTransaction()
-                        .replace(R.id.frameContainer,
-                        previewPhoto)
-                        .addToBackStack(null)
-                        .commit()
-                    // Image Preview screen - built in a later step.
-                }
+
+
+
+
                 binding.recyclerPhotos.adapter = photosAdapter
 
                 // Re-attach the layout manager now that the adapter (and

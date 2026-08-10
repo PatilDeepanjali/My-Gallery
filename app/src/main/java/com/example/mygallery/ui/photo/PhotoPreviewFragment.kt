@@ -14,6 +14,8 @@ import com.example.mygallery.adapter.PhotoPreviewAdapter
 import com.example.mygallery.databinding.FragmentPhotoPreviewBinding
 import com.example.mygallery.model.ImageModel
 import com.example.mygallery.ui.MainActivity
+import com.example.mygallery.ui.photo.preview.PreviewAction
+import com.example.mygallery.ui.photo.preview.PreviewActionPopup
 import com.example.mygallery.utils.DateUtils
 
 

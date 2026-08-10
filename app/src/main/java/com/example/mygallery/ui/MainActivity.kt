@@ -7,7 +7,7 @@ import androidx.appcompat.app.AppCompatActivity
 import com.example.mygallery.R
 import com.example.mygallery.databinding.ActivityMainBinding
 import com.example.mygallery.ui.album.AlbumFragment
-import com.example.mygallery.ui.photos.PhotoFragment
+import com.example.mygallery.ui.photo.PhotoFragment
 
 class MainActivity : AppCompatActivity() {
 
@@ -15,50 +15,65 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
 
-         binding = ActivityMainBinding.inflate(layoutInflater)
+        binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // Only show AlbumFragment the FIRST time Activity is created.
+        // After rotation, Android restores the existing Fragment.
+        if (savedInstanceState == null) {
 
-        var albumFragment = AlbumFragment()
-        var photoFragment = PhotoFragment()
-        // for Fragement Frame
-
-        supportFragmentManager.beginTransaction().add(R.id.frameContainer, albumFragment).commit()
-
-
-        // Bottom Navigaatio
+            supportFragmentManager.beginTransaction()
+                .replace(
+                    R.id.frameContainer,
+                    AlbumFragment()
+                )
+                .commit()
+        }
 
         binding.bottomNav.setOnItemSelectedListener { menuItem: MenuItem ->
 
             when (menuItem.itemId) {
+
                 R.id.album -> {
+
                     supportFragmentManager.beginTransaction()
-                        .replace(R.id.frameContainer, albumFragment).commit()
+                        .replace(
+                            R.id.frameContainer,
+                            AlbumFragment()
+                        )
+                        .commit()
+
                     true
                 }
 
                 R.id.photo -> {
+
                     supportFragmentManager.beginTransaction()
-                        .replace(R.id.frameContainer, photoFragment).commit()
+                        .replace(
+                            R.id.frameContainer,
+                            PhotoFragment()
+                        )
+                        .commit()
+
                     true
                 }
 
                 R.id.menu -> {
+
                     supportFragmentManager.beginTransaction()
-                        .replace(R.id.frameContainer, albumFragment).commit()
+                        .replace(
+                            R.id.frameContainer,
+                            AlbumFragment()
+                        )
+                        .commit()
+
                     true
                 }
 
-                else -> {
-                    false
-                }
+                else -> false
             }
-
         }
-
-
     }
 
     fun hideBottomNavigation() {

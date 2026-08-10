@@ -1,12 +1,13 @@
-package com.example.mygallery.ui.photo
+package com.example.mygallery.ui.photo.menu
 
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import com.example.mygallery.R
-import com.example.mygallery.databinding.BottomSheetColumnBinding
 import com.example.mygallery.databinding.BottomSheetSortBinding
+import com.example.mygallery.ui.photo.menu.SortOrder
+import com.example.mygallery.ui.photo.menu.SortType
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 
 class SortBottomSheet(

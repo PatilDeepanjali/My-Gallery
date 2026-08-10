@@ -1,4 +1,4 @@
-package com.example.mygallery.ui.photo
+package com.example.mygallery.ui.photo.menu
 
 import android.os.Bundle
 import android.view.LayoutInflater

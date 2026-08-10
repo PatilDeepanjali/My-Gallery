@@ -2,17 +2,16 @@ package com.example.mygallery.repository
 
 import android.app.RecoverableSecurityException
 import android.content.ContentUris
+import android.content.ContentValues
 import android.content.Context
 import android.net.Uri
 import android.os.Build
-import android.os.Environment
 import android.provider.MediaStore
 import com.example.mygallery.model.DeleteResult
 import com.example.mygallery.model.GalleryFolder
 import com.example.mygallery.model.ImageModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.File
 
 class GalleryRepository {
 
@@ -122,9 +121,6 @@ class GalleryRepository {
             if (folderName == null) {
                 queryImages(context, selection = null, selectionArgs = null)
             } else {
-                // "?" is a safe placeholder — Android substitutes folderName
-                // into it. Never build this by directly concatenating the
-                // folder name into the string (SQL-injection risk + bad habit).
                 val selection = "${MediaStore.Images.Media.BUCKET_DISPLAY_NAME} = ?"
                 val selectionArgs = arrayOf(folderName)
                 queryImages(context, selection, selectionArgs)
@@ -132,41 +128,23 @@ class GalleryRepository {
         }
     }
 
-    // Creating new Album
+    // Creating new Album — deliberately does NOT touch the filesystem.
+    // See CustomAlbumPreferences for why: java.io.File.mkdirs() on
+    // shared storage is unreliable/broken under Scoped Storage on
+    // Android 10+, and an empty folder has no MediaStore representation
+    // anyway (it only becomes "real" once it holds a photo).
     fun createAlbum(context: Context, albumName: String): Result<String> {
 
         if (albumName.isBlank()) {
             return Result.failure(Exception("Album name cannot be empty"))
         }
 
-        val picturesDir =
-            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
-
-        val myGalleryDir = File(picturesDir, "MyGallery")
-
-        if (!myGalleryDir.exists()) {
-            myGalleryDir.mkdirs()
+        if (com.example.mygallery.utils.CustomAlbumPreferences.hasCustomAlbum(context, albumName)) {
+            return Result.failure(Exception("Album already exists"))
         }
 
-        val albumFolder = File(myGalleryDir, albumName)
-
-        return if (albumFolder.exists()) {
-
-            Result.failure(Exception("Album already exists"))
-
-        } else {
-
-            if (albumFolder.mkdirs()) {
-
-                Result.success("Album created successfully")
-
-            } else {
-
-                Result.failure(Exception("Failed to create album"))
-
-            }
-
-        }
+        com.example.mygallery.utils.CustomAlbumPreferences.addCustomAlbum(context, albumName)
+        return Result.success("Album created successfully")
     }
 
     fun searchAlbums(
@@ -182,14 +160,9 @@ class GalleryRepository {
     }
 
 
-
     /**
      * Attempts to delete the given images, handling the 3 different
      * Android version behaviors described in DeleteResult's docs.
-     *
-     * This function ITSELF never shows any UI — it only ever returns a
-     * result describing what (if anything) the Fragment needs to do
-     * next (e.g. launch a system confirmation dialog).
      */
     suspend fun deleteImages(context: Context, uris: List<Uri>): DeleteResult {
 
@@ -197,9 +170,6 @@ class GalleryRepository {
 
             when {
 
-                // Android 11+ : one batched system confirmation covers
-                // ALL uris. If the user agrees, Android deletes them —
-                // we do not need to call delete() ourselves afterward.
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> {
                     try {
                         val pendingIntent =
@@ -210,13 +180,6 @@ class GalleryRepository {
                     }
                 }
 
-                // Android 10 exactly: no batch API exists yet. We try
-                // deleting directly; the FIRST file we don't have
-                // standing permission for throws a
-                // RecoverableSecurityException containing a one-file
-                // permission prompt. We surface that + the remaining
-                // untried uris so the Fragment can retry after the
-                // user grants it.
                 Build.VERSION.SDK_INT == Build.VERSION_CODES.Q -> {
                     val remaining = uris.toMutableList()
                     try {
@@ -235,8 +198,6 @@ class GalleryRepository {
                     }
                 }
 
-                // API 24-28: no Scoped Storage restrictions yet — direct
-                // delete works without any extra confirmation.
                 else -> {
                     try {
                         uris.forEach { uri -> context.contentResolver.delete(uri, null, null) }
@@ -249,6 +210,70 @@ class GalleryRepository {
         }
     }
 
+    /**
+     * Copies each given image into the destination album folder,
+     * creating a NEW MediaStore entry per image (originals untouched).
+     * No special permission handling needed here — creating brand new
+     * media is always allowed, unlike modifying/deleting existing files.
+     *
+     * @return the number of images successfully copied.
+     */
+    suspend fun copyImages(
+        context: Context,
+        uris: List<Uri>,
+        destinationAlbumName: String
+    ): Result<Int> {
 
+        return withContext(Dispatchers.IO) {
 
+            try {
+                var copiedCount = 0
+
+                for (sourceUri in uris) {
+
+                    val displayName = queryDisplayName(context, sourceUri)
+                        ?: "IMG_${System.currentTimeMillis()}.jpg"
+                    val mimeType = context.contentResolver.getType(sourceUri) ?: "image/jpeg"
+
+                    val values = ContentValues().apply {
+                        put(MediaStore.Images.Media.DISPLAY_NAME, displayName)
+                        put(MediaStore.Images.Media.MIME_TYPE, mimeType)
+                        put(
+                            MediaStore.Images.Media.RELATIVE_PATH,
+                            "Pictures/MyGallery/$destinationAlbumName"
+                        )
+                    }
+
+                    val newUri = context.contentResolver.insert(
+                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                        values
+                    ) ?: continue
+
+                    context.contentResolver.openInputStream(sourceUri)?.use { input ->
+                        context.contentResolver.openOutputStream(newUri)?.use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+
+                    copiedCount++
+                }
+
+                Result.success(copiedCount)
+
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+        }
+    }
+
+    private fun queryDisplayName(context: Context, uri: Uri): String? {
+        val projection = arrayOf(MediaStore.Images.Media.DISPLAY_NAME)
+        context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
+                return cursor.getString(nameColumn)
+            }
+        }
+        return null
+    }
 }
