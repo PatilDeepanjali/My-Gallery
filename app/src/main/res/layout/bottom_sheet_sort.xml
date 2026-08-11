@@ -39,7 +39,14 @@
 
     </LinearLayout>
 
-    <!-- Sort Type Card -->
+    <!--
+        Sort Type Card — 4 generic option rows. Each Kotlin class using
+        this layout (SortBottomSheet for Photos, AlbumSortBottomSheet
+        for Album) sets its OWN icon + label text + click behavior for
+        each slot at runtime. Nothing photo- or album-specific is
+        hardcoded here anymore — that's what makes this one file
+        genuinely reusable instead of two similar-looking copies.
+    -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -47,9 +54,9 @@
         android:background="@drawable/bg_sheet_option"
         android:orientation="vertical">
 
-        <!-- Date Taken -->
+        <!-- Option 1 -->
         <LinearLayout
-            android:id="@+id/layoutDateTaken"
+            android:id="@+id/layoutOption1"
             android:layout_width="match_parent"
             android:layout_height="56dp"
             android:clickable="true"
@@ -58,20 +65,22 @@
             android:paddingHorizontal="16dp">
 
             <ImageView
+                android:id="@+id/imgOption1Icon"
                 android:layout_width="18dp"
                 android:layout_height="18dp"
                 android:src="@drawable/ic_calendar" />
 
             <TextView
+                android:id="@+id/tvOption1Label"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="12dp"
                 android:layout_weight="1"
-                android:text="Date Taken"
+                android:text="Option 1"
                 android:textSize="15sp" />
 
             <ImageView
-                android:id="@+id/imgDateTakenCheck"
+                android:id="@+id/imgOption1Check"
                 android:layout_width="22dp"
                 android:layout_height="22dp"
                 android:src="@drawable/ic_plane_circle" />
@@ -83,9 +92,9 @@
             android:layout_height="1dp"
             android:background="#E8E8E8" />
 
-        <!-- Last Modified -->
+        <!-- Option 2 -->
         <LinearLayout
-            android:id="@+id/layoutLastModified"
+            android:id="@+id/layoutOption2"
             android:layout_width="match_parent"
             android:layout_height="56dp"
             android:clickable="true"
@@ -94,56 +103,22 @@
             android:paddingHorizontal="16dp">
 
             <ImageView
+                android:id="@+id/imgOption2Icon"
                 android:layout_width="18dp"
                 android:layout_height="18dp"
                 android:src="@drawable/ic_edit" />
 
             <TextView
+                android:id="@+id/tvOption2Label"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="12dp"
                 android:layout_weight="1"
-                android:text="Last Modified"
+                android:text="Option 2"
                 android:textSize="15sp" />
 
             <ImageView
-                android:id="@+id/imgLastModifiedCheck"
-                android:layout_width="22dp"
-                android:layout_height="22dp"
-                android:src="@drawable/ic_check_circle_filled" />
-
-        </LinearLayout>
-
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:background="#E8E8E8" />
-
-        <!-- Album Name -->
-        <LinearLayout
-            android:id="@+id/layoutAlbumName"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:clickable="true"
-            android:focusable="true"
-            android:gravity="center_vertical"
-            android:paddingHorizontal="16dp">
-
-            <ImageView
-                android:layout_width="18dp"
-                android:layout_height="18dp"
-                android:src="@drawable/ic_album" />
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
-                android:layout_weight="1"
-                android:text="Album Name"
-                android:textSize="15sp" />
-
-            <ImageView
-                android:id="@+id/imgAlbumNameCheck"
+                android:id="@+id/imgOption2Check"
                 android:layout_width="22dp"
                 android:layout_height="22dp"
                 android:src="@drawable/ic_plane_circle" />
@@ -155,9 +130,9 @@
             android:layout_height="1dp"
             android:background="#E8E8E8" />
 
-        <!-- Size -->
+        <!-- Option 3 -->
         <LinearLayout
-            android:id="@+id/layoutSize"
+            android:id="@+id/layoutOption3"
             android:layout_width="match_parent"
             android:layout_height="56dp"
             android:clickable="true"
@@ -166,20 +141,60 @@
             android:paddingHorizontal="16dp">
 
             <ImageView
+                android:id="@+id/imgOption3Icon"
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:src="@drawable/ic_album" />
+
+            <TextView
+                android:id="@+id/tvOption3Label"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_weight="1"
+                android:text="Option 3"
+                android:textSize="15sp" />
+
+            <ImageView
+                android:id="@+id/imgOption3Check"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:src="@drawable/ic_plane_circle" />
+
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#E8E8E8" />
+
+        <!-- Option 4 -->
+        <LinearLayout
+            android:id="@+id/layoutOption4"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="16dp">
+
+            <ImageView
+                android:id="@+id/imgOption4Icon"
                 android:layout_width="18dp"
                 android:layout_height="18dp"
                 android:src="@drawable/ic_size" />
 
             <TextView
+                android:id="@+id/tvOption4Label"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="12dp"
                 android:layout_weight="1"
-                android:text="Size"
+                android:text="Option 4"
                 android:textSize="15sp" />
 
             <ImageView
-                android:id="@+id/imgSizeCheck"
+                android:id="@+id/imgOption4Check"
                 android:layout_width="22dp"
                 android:layout_height="22dp"
                 android:src="@drawable/ic_plane_circle" />
@@ -188,7 +203,8 @@
 
     </LinearLayout>
 
-    <!-- Order Card -->
+    <!-- Order Card — kept as-is; Ascending/Descending are genuinely
+         identical concepts in both contexts, no per-screen config needed. -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

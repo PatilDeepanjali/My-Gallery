@@ -41,6 +41,13 @@ class AlbumFragment : Fragment() {
     private lateinit var viewModel: GalleryViewModel
     private lateinit var galleryAdapter: GalleryAdapter
 
+
+    // Current Album sort preference — defaults match "no explicit sort
+    // applied yet" (alphabetical, ascending).
+    private var currentAlbumSortType = AlbumSortType.NAME
+    private var currentAlbumSortOrder = com.example.mygallery.ui.photo.menu.SortOrder.ASCENDING
+
+
     private var isGridView = true
 
     // Holds the remaining URIs still needing deletion when we're on the
@@ -182,7 +189,28 @@ class AlbumFragment : Fragment() {
             binding.pinnedBanner.visibility = View.GONE
         }
 
-        // Grid Button
+
+
+        binding.btnSort.setOnClickListener {
+
+            val sheet = AlbumSortBottomSheet(currentAlbumSortType, currentAlbumSortOrder)
+
+            sheet.setListener(object : AlbumSortBottomSheet.OnAlbumSortSelected {
+                override fun onAlbumSortSelected(
+                    sortType: AlbumSortType,
+                    sortOrder: com.example.mygallery.ui.photo.menu.SortOrder
+                ) {
+                    currentAlbumSortType = sortType
+                    currentAlbumSortOrder = sortOrder
+                    viewModel.applySort(requireContext(), sortType, sortOrder)
+                }
+            })
+
+            sheet.show(childFragmentManager, "AlbumSort")
+        }
+
+
+            // Grid Button
         binding.btnGridView.setOnClickListener {
 
             isGridView = true
@@ -231,6 +259,10 @@ class AlbumFragment : Fragment() {
             override fun afterTextChanged(s: Editable?) {
             }
         })
+
+
+
+
 
         binding.btnAdd.setOnClickListener {
 

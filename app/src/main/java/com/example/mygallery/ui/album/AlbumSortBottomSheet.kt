@@ -1,4 +1,4 @@
-package com.example.mygallery.ui.photo
+package com.example.mygallery.ui.album
 
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -7,12 +7,11 @@ import android.view.ViewGroup
 import com.example.mygallery.R
 import com.example.mygallery.databinding.BottomSheetSortBinding
 import com.example.mygallery.ui.photo.menu.SortOrder
-import com.example.mygallery.ui.photo.menu.SortType
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 
-class SortBottomSheet(
+class AlbumSortBottomSheet(
 
-    private val currentSortType: SortType,
+    private val currentSortType: AlbumSortType,
     private val currentSortOrder: SortOrder
 
 ) : BottomSheetDialogFragment() {
@@ -20,16 +19,19 @@ class SortBottomSheet(
     private var selectedSortType = currentSortType
     private var selectedSortOrder = currentSortOrder
 
+    // Same binding class as Photos' SortBottomSheet — this is the
+    // actual "one shared file" win: both classes inflate the exact
+    // same layout, each configuring it for their own context.
     private var _binding: BottomSheetSortBinding? = null
     private val binding get() = _binding!!
 
-    interface OnSortSelected {
-        fun onSortSelected(sortType: SortType, sortOrder: SortOrder)
+    interface OnAlbumSortSelected {
+        fun onAlbumSortSelected(sortType: AlbumSortType, sortOrder: SortOrder)
     }
 
-    private var listener: OnSortSelected? = null
+    private var listener: OnAlbumSortSelected? = null
 
-    fun setListener(listener: OnSortSelected) {
+    fun setListener(listener: OnAlbumSortSelected) {
         this.listener = listener
     }
 
@@ -45,34 +47,32 @@ class SortBottomSheet(
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Configure each generic slot for the PHOTOS context — this is
-        // the only place "Date Taken", "Last Modified", etc. exist now;
-        // the layout itself no longer hardcodes any of this text.
-        binding.imgOption1Icon.setImageResource(R.drawable.ic_calendar)
-        binding.tvOption1Label.text = "Date Taken"
+        // Configure each generic slot for the ALBUM context.
+        binding.imgOption1Icon.setImageResource(R.drawable.ic_album)
+        binding.tvOption1Label.text = "Name"
         binding.layoutOption1.setOnClickListener {
-            selectedSortType = SortType.DATE_TAKEN
+            selectedSortType = AlbumSortType.NAME
             updateSelection()
         }
 
-        binding.imgOption2Icon.setImageResource(R.drawable.ic_edit)
-        binding.tvOption2Label.text = "Last Modified"
+        binding.imgOption2Icon.setImageResource(R.drawable.ic_list)
+        binding.tvOption2Label.text = "Item Count"
         binding.layoutOption2.setOnClickListener {
-            selectedSortType = SortType.LAST_MODIFIED
+            selectedSortType = AlbumSortType.ITEM_COUNT
             updateSelection()
         }
 
-        binding.imgOption3Icon.setImageResource(R.drawable.ic_album)
-        binding.tvOption3Label.text = "Album Name"
+        binding.imgOption3Icon.setImageResource(R.drawable.ic_size)
+        binding.tvOption3Label.text = "Size"
         binding.layoutOption3.setOnClickListener {
-            selectedSortType = SortType.ALBUM_NAME
+            selectedSortType = AlbumSortType.SIZE
             updateSelection()
         }
 
-        binding.imgOption4Icon.setImageResource(R.drawable.ic_size)
-        binding.tvOption4Label.text = "Size"
+        binding.imgOption4Icon.setImageResource(R.drawable.ic_calendar)
+        binding.tvOption4Label.text = "Date Added"
         binding.layoutOption4.setOnClickListener {
-            selectedSortType = SortType.SIZE
+            selectedSortType = AlbumSortType.DATE_ADDED
             updateSelection()
         }
 
@@ -93,7 +93,7 @@ class SortBottomSheet(
         }
 
         binding.btnApply.setOnClickListener {
-            listener?.onSortSelected(selectedSortType, selectedSortOrder)
+            listener?.onAlbumSortSelected(selectedSortType, selectedSortOrder)
             dismiss()
         }
     }
@@ -101,28 +101,28 @@ class SortBottomSheet(
     private fun updateSelection() {
 
         binding.imgOption1Check.setImageResource(
-            if (selectedSortType == SortType.DATE_TAKEN)
+            if (selectedSortType == AlbumSortType.NAME)
                 R.drawable.ic_check_circle_filled
             else
                 R.drawable.ic_plane_circle
         )
 
         binding.imgOption2Check.setImageResource(
-            if (selectedSortType == SortType.LAST_MODIFIED)
+            if (selectedSortType == AlbumSortType.ITEM_COUNT)
                 R.drawable.ic_check_circle_filled
             else
                 R.drawable.ic_plane_circle
         )
 
         binding.imgOption3Check.setImageResource(
-            if (selectedSortType == SortType.ALBUM_NAME)
+            if (selectedSortType == AlbumSortType.SIZE)
                 R.drawable.ic_check_circle_filled
             else
                 R.drawable.ic_plane_circle
         )
 
         binding.imgOption4Check.setImageResource(
-            if (selectedSortType == SortType.SIZE)
+            if (selectedSortType == AlbumSortType.DATE_ADDED)
                 R.drawable.ic_check_circle_filled
             else
                 R.drawable.ic_plane_circle

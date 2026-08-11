@@ -17,7 +17,6 @@ import com.example.mygallery.repository.GalleryRepository
 import com.example.mygallery.ui.photo.menu.ColumnBottomSheet
 import com.example.mygallery.ui.photo.menu.LayoutStyleBottomSheet
 import com.example.mygallery.ui.photo.menu.PhotoActionPopup
-import com.example.mygallery.ui.photo.menu.SortBottomSheet
 import com.example.mygallery.ui.photo.menu.SortOrder
 import com.example.mygallery.ui.photo.menu.SortType
 import com.example.mygallery.ui.state.PhotosUiState
@@ -25,7 +24,8 @@ import com.example.mygallery.viewmodel.PhotosViewModel
 import com.example.mygallery.viewmodel.PhotosViewModelFactory
 import com.example.mygallery.ui.photo.selection.PhotoSelectionAction
 import com.example.mygallery.ui.photo.selection.PhotoSelectionActionPopup
-
+import android.content.Intent
+import android.content.ClipData
 
 class PhotoFragment : Fragment() {
 
@@ -237,7 +237,7 @@ class PhotoFragment : Fragment() {
                     }
 
                     PhotoSelectionAction.SHARE -> {
-                        // Implement later
+                        shareSelectedPhotos()
                     }
 
                     PhotoSelectionAction.DELETE -> {
@@ -296,6 +296,90 @@ class PhotoFragment : Fragment() {
         }
     }
 
+
+    private fun shareSelectedPhotos() {
+
+        val selectedIds =
+            viewModel.selectedPhotoIds.value ?: emptySet()
+
+        if (selectedIds.isEmpty()) {
+            return
+        }
+
+        val selectedPhotos = photoList.filter {
+            it.id in selectedIds
+        }
+
+        if (selectedPhotos.isEmpty()) {
+            return
+        }
+
+        if (selectedPhotos.size == 1) {
+
+            // ---------- SINGLE PHOTO ----------
+
+            val photo = selectedPhotos.first()
+
+            val mimeType =
+                requireContext()
+                    .contentResolver
+                    .getType(photo.uri)
+                    ?: "image/*"
+
+            val intent = Intent(Intent.ACTION_SEND).apply {
+
+                type = mimeType
+
+                putExtra(
+                    Intent.EXTRA_STREAM,
+                    photo.uri
+                )
+
+                addFlags(
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            }
+
+            startActivity(
+                Intent.createChooser(
+                    intent,
+                    "Share Photo"
+                )
+            )
+
+        } else {
+
+            // ---------- MULTIPLE PHOTOS ----------
+
+            val uris = ArrayList<android.net.Uri>()
+
+            selectedPhotos.forEach { photo ->
+                uris.add(photo.uri)
+            }
+
+            val intent = Intent(Intent.ACTION_SEND_MULTIPLE).apply {
+
+                type = "image/*"
+
+                putParcelableArrayListExtra(
+                    Intent.EXTRA_STREAM,
+                    uris
+                )
+
+                addFlags(
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            }
+
+            startActivity(
+                Intent.createChooser(
+                    intent,
+                    "Share Photos"
+                )
+            )
+        }
+    }
+
     private fun buildGridLayoutManager(): GridLayoutManager {
         val layoutManager = GridLayoutManager(requireContext(), gridSpanCount)
 
@@ -349,27 +433,42 @@ class PhotoFragment : Fragment() {
 
         if (isSelecting) {
 
-            // Hide normal header
+            // Hide normal Photos header
             binding.btnBack.visibility = View.GONE
             binding.tvTitle.visibility = View.GONE
             binding.tvSubtitle.visibility = View.GONE
             binding.btnMenu.visibility = View.GONE
+
+            // Hide normal grid/list toggle
             binding.viewToggleGroup.visibility = View.GONE
 
             // Show selection header
             binding.selectionHeader.visibility = View.VISIBLE
-            binding.selectionFilters.visibility = View.VISIBLE
+
+            /*
+             * Filter chips are ONLY for the main
+             * "All Photos" screen.
+             *
+             * Album screen does not show them.
+             */
+            if (folderName == null) {
+                binding.selectionFilters.visibility = View.VISIBLE
+            } else {
+                binding.selectionFilters.visibility = View.GONE
+            }
 
         } else {
 
-            // Show normal header
+            // Restore normal header
             binding.btnBack.visibility = View.VISIBLE
             binding.tvTitle.visibility = View.VISIBLE
             binding.tvSubtitle.visibility = View.VISIBLE
             binding.btnMenu.visibility = View.VISIBLE
+
+            // Restore grid/list toggle
             binding.viewToggleGroup.visibility = View.VISIBLE
 
-            // Hide selection header
+            // Hide selection UI
             binding.selectionHeader.visibility = View.GONE
             binding.selectionFilters.visibility = View.GONE
         }

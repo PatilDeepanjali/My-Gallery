@@ -137,6 +137,54 @@ class GalleryViewModel(val repository: GalleryRepository) : ViewModel() {
     }
 
 
+
+    // ---------- Album Sort ----------
+
+    /**
+     * Re-sorts the already-loaded album list in memory (no new
+     * MediaStore query needed) according to the user's chosen
+     * criteria — while still keeping pinned albums first, same as
+     * loadFolders() does by default. Pin priority + user sort combine
+     * via Comparator.then(), so pinned albums stay pinned-first, and
+     * WITHIN each group (pinned / not pinned) the chosen sort applies.
+     */
+    fun applySort(
+        context: Context,
+        sortType: com.example.mygallery.ui.album.AlbumSortType,
+        sortOrder: com.example.mygallery.ui.photo.menu.SortOrder
+    ) {
+        val baseComparator: Comparator<GalleryFolder> = when (sortType) {
+            com.example.mygallery.ui.album.AlbumSortType.NAME ->
+                compareBy { folder -> folder.folderName.lowercase() }
+
+            com.example.mygallery.ui.album.AlbumSortType.ITEM_COUNT ->
+                compareBy { folder -> folder.imageCount }
+
+            com.example.mygallery.ui.album.AlbumSortType.SIZE ->
+                compareBy { folder -> folder.imageList.sumOf { it.size } }
+
+            com.example.mygallery.ui.album.AlbumSortType.DATE_ADDED ->
+                compareBy { folder -> folder.imageList.maxOfOrNull { it.dateAdded } ?: 0L }
+        }
+
+        val orderedComparator =
+            if (sortOrder == com.example.mygallery.ui.photo.menu.SortOrder.DESCENDING)
+                baseComparator.reversed()
+            else
+                baseComparator
+
+        val pinnedFirstComparator =
+            compareByDescending<GalleryFolder> { folder -> PinPreferences.isPinned(context, folder.folderName) }
+                .then(orderedComparator)
+
+        val sorted = allAlbums.sortedWith(pinnedFirstComparator)
+
+        allAlbums = sorted
+        _filteredAlbums.value = sorted
+        _uiState.value = GalleryUiState.Success(sorted)
+    }
+
+
     // ---------- Delete ----------
 
     /**
