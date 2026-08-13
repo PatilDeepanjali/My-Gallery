@@ -129,10 +129,6 @@ class GalleryRepository {
     }
 
     // Creating new Album — deliberately does NOT touch the filesystem.
-    // See CustomAlbumPreferences for why: java.io.File.mkdirs() on
-    // shared storage is unreliable/broken under Scoped Storage on
-    // Android 10+, and an empty folder has no MediaStore representation
-    // anyway (it only becomes "real" once it holds a photo).
     fun createAlbum(context: Context, albumName: String): Result<String> {
 
         if (albumName.isBlank()) {
@@ -159,11 +155,33 @@ class GalleryRepository {
         }
     }
 
-
     /**
-     * Attempts to delete the given images, handling the 3 different
-     * Android version behaviors described in DeleteResult's docs.
+     * Merges in placeholder entries for custom albums (created via "+")
+     * that don't have any real photos yet — these have no MediaStore
+     * representation at all, so getAllFolders() never returns them on
+     * its own. Shared by GalleryViewModel (main Album grid) and
+     * AlbumPickerBottomSheet (Move/Copy picker) so both show the same
+     * set of albums, not just whichever one remembers to merge.
      */
+    fun mergeCustomAlbums(context: Context, realFolders: List<GalleryFolder>): List<GalleryFolder> {
+
+        val realNames = realFolders.map { it.folderName }.toSet()
+
+        val customOnlyNames = com.example.mygallery.utils.CustomAlbumPreferences
+            .getCustomAlbumNames(context)
+            .filter { it !in realNames }
+
+        val placeholders = customOnlyNames.map { name ->
+            GalleryFolder(
+                folderName = name,
+                coverImage = Uri.EMPTY,
+                imageList = arrayListOf()
+            )
+        }
+
+        return realFolders + placeholders
+    }
+
     suspend fun deleteImages(context: Context, uris: List<Uri>): DeleteResult {
 
         return withContext(Dispatchers.IO) {
@@ -210,14 +228,6 @@ class GalleryRepository {
         }
     }
 
-    /**
-     * Copies each given image into the destination album folder,
-     * creating a NEW MediaStore entry per image (originals untouched).
-     * No special permission handling needed here — creating brand new
-     * media is always allowed, unlike modifying/deleting existing files.
-     *
-     * @return the number of images successfully copied.
-     */
     suspend fun copyImages(
         context: Context,
         uris: List<Uri>,

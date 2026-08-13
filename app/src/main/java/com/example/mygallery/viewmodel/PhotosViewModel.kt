@@ -15,7 +15,7 @@ import com.example.mygallery.utils.DateGroupingUtil
 import kotlinx.coroutines.launch
 
 class PhotosViewModel(
-    private val repository: GalleryRepository
+     val repository: GalleryRepository
 ) : ViewModel() {
 
     private val _uiState = MutableLiveData<PhotosUiState>()

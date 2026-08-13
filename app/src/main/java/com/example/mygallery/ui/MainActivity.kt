@@ -60,15 +60,18 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 R.id.menu -> {
+                    // Menu is NOT a real screen — it's a bottom sheet
+                    // shown OVER whatever's currently displayed
+                    // (Album or Photos). We deliberately do NOT
+                    // replace the fragment here.
+                    MenuBottomSheet().show(supportFragmentManager, "MenuBottomSheet")
 
-                    supportFragmentManager.beginTransaction()
-                        .replace(
-                            R.id.frameContainer,
-                            AlbumFragment()
-                        )
-                        .commit()
-
-                    true
+                    // Returning false tells BottomNavigationView "don't
+                    // mark this item as selected" — so the previously
+                    // active tab (Album/Photos) stays visually
+                    // highlighted underneath the sheet, since we never
+                    // actually navigated away from it.
+                    false
                 }
 
                 else -> false

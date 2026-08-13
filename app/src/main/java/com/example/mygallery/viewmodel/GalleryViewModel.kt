@@ -30,11 +30,6 @@ class GalleryViewModel(val repository: GalleryRepository) : ViewModel() {
     private val _isSelectionMode = MutableLiveData(false)
     val isSelectionMode: LiveData<Boolean> = _isSelectionMode
 
-    // We track SELECTED folders by folderName (a String), not the whole
-    // GalleryFolder object. Folder names are unique and lightweight —
-    // storing full objects in a Set would also work, but comparing/
-    // hashing plain Strings is simpler and avoids relying on GalleryFolder
-    // having correct equals()/hashCode() implementations.
     private val _selectedFolderNames = MutableLiveData<Set<String>>(emptySet())
     val selectedFolderNames: LiveData<Set<String>> = _selectedFolderNames
 
@@ -46,25 +41,26 @@ class GalleryViewModel(val repository: GalleryRepository) : ViewModel() {
 
         viewModelScope.launch {
 
-            _uiState.value = GalleryUiState.Loading // Loading state
+            _uiState.value = GalleryUiState.Loading
 
-            val folderList = repository.getAllFolders(context)
+            val realFolders = repository.getAllFolders(context)
 
-            // Pinned folders float to the top. sortedByDescending on a
-            // Boolean puts `true` (pinned) before `false` — a common
-            // small trick worth remembering.
-            val sortedList = folderList.sortedByDescending { folder ->
+            // Bring in placeholder entries for custom albums that don't
+            // have any real photos yet — without this, an album you
+            // just created with "+" would never appear on this screen,
+            // only in the Move/Copy picker (which did this merge
+            // separately).
+            val mergedList = repository.mergeCustomAlbums(context, realFolders)
+
+            // Pinned folders float to the top.
+            val sortedList = mergedList.sortedByDescending { folder ->
                 PinPreferences.isPinned(context, folder.folderName)
             }
 
-
-            // Save original list
             allAlbums = sortedList
-
-            // Display all albums initially
             _filteredAlbums.value = sortedList
 
-            _uiState.value = if (folderList.isEmpty()) {
+            _uiState.value = if (sortedList.isEmpty()) {
                 GalleryUiState.Empty
             } else {
                 GalleryUiState.Success(sortedList)
@@ -90,20 +86,11 @@ class GalleryViewModel(val repository: GalleryRepository) : ViewModel() {
 
     // ---------- Selection Mode functions ----------
 
-    /**
-     * Long-pressing a folder while NOT already in selection mode enters
-     * it, and selects that first folder.
-     */
     fun enterSelectionMode(folder: GalleryFolder) {
         _isSelectionMode.value = true
         _selectedFolderNames.value = setOf(folder.folderName)
     }
 
-    /**
-     * Tapping a folder while IN selection mode toggles its checkbox.
-     * If this toggle empties the selection entirely, we automatically
-     * exit selection mode — there's nothing left "selected" to act on.
-     */
     fun toggleSelection(folder: GalleryFolder) {
 
         val current = _selectedFolderNames.value ?: emptySet()
@@ -126,28 +113,13 @@ class GalleryViewModel(val repository: GalleryRepository) : ViewModel() {
         _selectedFolderNames.value = emptySet()
     }
 
-    /**
-     * Resolves the currently selected folder NAMES back into full
-     * GalleryFolder objects (with their image lists), so actions like
-     * Delete/Move/Details have the real data to work with.
-     */
     fun getSelectedFolders(): List<GalleryFolder> {
         val selectedNames = _selectedFolderNames.value ?: emptySet()
         return allAlbums.filter { it.folderName in selectedNames }
     }
 
-
-
     // ---------- Album Sort ----------
 
-    /**
-     * Re-sorts the already-loaded album list in memory (no new
-     * MediaStore query needed) according to the user's chosen
-     * criteria — while still keeping pinned albums first, same as
-     * loadFolders() does by default. Pin priority + user sort combine
-     * via Comparator.then(), so pinned albums stay pinned-first, and
-     * WITHIN each group (pinned / not pinned) the chosen sort applies.
-     */
     fun applySort(
         context: Context,
         sortType: com.example.mygallery.ui.album.AlbumSortType,
@@ -184,15 +156,8 @@ class GalleryViewModel(val repository: GalleryRepository) : ViewModel() {
         _uiState.value = GalleryUiState.Success(sorted)
     }
 
-
     // ---------- Delete ----------
 
-    /**
-     * Thin wrapper around the Repository's deleteImages(). Kept as a
-     * plain callback (not LiveData) since this is a one-shot action,
-     * not ongoing screen state — the Fragment just needs to know once
-     * what happened, not observe it continuously.
-     */
     fun deleteImages(context: Context, uris: List<Uri>, onResult: (DeleteResult) -> Unit) {
         viewModelScope.launch {
             val result = repository.deleteImages(context, uris)

@@ -18,16 +18,6 @@ import com.example.mygallery.repository.GalleryRepository
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import kotlinx.coroutines.launch
 
-/**
- * Lets the user pick a destination album for a Move or Copy action.
- * Reused for both — only the title/icon and the caller's follow-up
- * action differ.
- *
- * Usage from a Fragment:
- *   val sheet = AlbumPickerBottomSheet.newInstance(Mode.MOVE, excludedNames)
- *   sheet.onAlbumSelected = { destinationName -> ... }
- *   sheet.show(childFragmentManager, "AlbumPicker")
- */
 class AlbumPickerBottomSheet : BottomSheetDialogFragment() {
 
     enum class Mode { MOVE, COPY }
@@ -46,11 +36,6 @@ class AlbumPickerBottomSheet : BottomSheetDialogFragment() {
         }
     }
 
-    // Set by the caller right after creating this fragment, before
-    // calling show(). Since the sheet is always created and shown by
-    // the same parent Fragment (never restored across process death),
-    // a plain callback is simpler here than trying to route this
-    // through Bundle arguments (which can't hold a lambda anyway).
     var onAlbumSelected: ((String) -> Unit)? = null
 
     private lateinit var binding: BottomSheetAlbumPickerBinding
@@ -95,35 +80,15 @@ class AlbumPickerBottomSheet : BottomSheetDialogFragment() {
         loadAlbums()
     }
 
-    /**
-     * Fetches the current album list directly from the Repository
-     * (not from GalleryViewModel — this sheet doesn't need selection
-     * mode, search, or any of that unrelated state) and excludes
-     * whichever folder(s) triggered this Move/Copy, since moving or
-     * copying an album into itself doesn't make sense.
-     */
     private fun loadAlbums() {
         viewLifecycleOwner.lifecycleScope.launch {
             val realFolders = repository.getAllFolders(requireContext())
-            val realNames = realFolders.map { it.folderName }.toSet()
 
-            // Custom albums the user created via "+" that don't have any
-            // real photos yet don't exist in MediaStore at all — add a
-            // lightweight placeholder so they're immediately selectable
-            // as a destination right after creating them.
-            val customOnlyNames = com.example.mygallery.utils.CustomAlbumPreferences
-                .getCustomAlbumNames(requireContext())
-                .filter { it !in realNames }
+            // Same shared merge GalleryViewModel uses for the main
+            // Album grid — keeps both screens showing the identical
+            // set of albums instead of duplicating this logic.
+            val allFolders = repository.mergeCustomAlbums(requireContext(), realFolders)
 
-            val placeholders = customOnlyNames.map { name ->
-                com.example.mygallery.model.GalleryFolder(
-                    folderName = name,
-                    coverImage = android.net.Uri.EMPTY,
-                    imageList = arrayListOf()
-                )
-            }
-
-            val allFolders = realFolders + placeholders
             val filtered = allFolders.filter { it.folderName !in excludedNames }
 
             binding.recyclerAlbumPicker.adapter = AlbumPickerAdapter(filtered) { folder ->
@@ -156,7 +121,7 @@ class AlbumPickerBottomSheet : BottomSheetDialogFragment() {
             if (result.isSuccess) {
                 Toast.makeText(requireContext(), result.getOrNull(), Toast.LENGTH_SHORT).show()
                 dialog.dismiss()
-                loadAlbums() // refresh so the new album shows up immediately
+                loadAlbums()
             } else {
                 dialogBinding.tilAlbumName.error = result.exceptionOrNull()?.message
             }
