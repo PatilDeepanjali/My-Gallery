@@ -18,4 +18,5 @@
     <string name="add_album">Add album</string>
     <string name="close">Close album</string>
     <string name="photo_selection">Photo selection</string>
+    <string name="toggle_favorite">Toggle favorite</string>
 </resources>

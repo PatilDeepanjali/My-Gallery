@@ -46,6 +46,7 @@ import android.os.Build
 import android.provider.MediaStore
 import android.widget.EditText
 import android.widget.LinearLayout
+import androidx.activity.OnBackPressedCallback
 
 
 class PhotoFragment : Fragment() {
@@ -118,6 +119,29 @@ class PhotoFragment : Fragment() {
         savedInstanceState: Bundle?
     ) {
         super.onViewCreated(view, savedInstanceState)
+
+        requireActivity().onBackPressedDispatcher.addCallback(
+            viewLifecycleOwner,
+            object : OnBackPressedCallback(true) {
+
+                override fun handleOnBackPressed() {
+
+                    if (viewModel.isSelectionMode.value == true) {
+
+                        // Exit selection mode
+                        viewModel.exitSelectionMode()
+
+                    } else {
+
+                        // Normal Android Back behavior
+                        isEnabled = false
+                        requireActivity()
+                            .onBackPressedDispatcher
+                            .onBackPressed()
+                    }
+                }
+            }
+        )
 
         setupObservers()
         setupBasicViews()

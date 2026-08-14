@@ -51,6 +51,13 @@
 
         </LinearLayout>
 
+        <!-- Fade divider between Photos and Videos -->
+        <View
+            android:layout_width="1dp"
+            android:layout_height="44dp"
+            android:layout_gravity="center_vertical"
+            android:background="@drawable/bg_stat_divider" />
+
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -76,6 +83,13 @@
                 android:textSize="12sp" />
 
         </LinearLayout>
+
+        <!-- Fade divider between Videos and Albums -->
+        <View
+            android:layout_width="1dp"
+            android:layout_height="44dp"
+            android:layout_gravity="center_vertical"
+            android:background="@drawable/bg_stat_divider" />
 
         <LinearLayout
             android:layout_width="0dp"
@@ -189,7 +203,7 @@
             <ImageView
                 android:layout_width="22dp"
                 android:layout_height="22dp"
-                android:src="@drawable/ic_theme"
+                android:src="@drawable/ic_sort2"
                 app:tint="@color/onBackground" />
 
             <TextView

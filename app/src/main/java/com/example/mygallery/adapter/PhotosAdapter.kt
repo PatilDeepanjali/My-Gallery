@@ -11,6 +11,7 @@ import com.example.mygallery.databinding.ItemDateHeaderBinding
 import com.example.mygallery.databinding.ItemPhotoGridBinding
 import com.example.mygallery.databinding.ItemPhotoListBinding
 import com.example.mygallery.model.PhotoListItem
+import com.example.mygallery.utils.FavoritePreferences
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -29,7 +30,6 @@ class PhotosAdapter(
         private const val TYPE_PHOTO_LIST = 2
     }
 
-    // Selection state is controlled by PhotoFragment/ViewModel.
     private var isSelectionMode = false
     private var selectedPhotoIds: Set<Long> = emptySet()
 
@@ -163,6 +163,9 @@ class PhotosAdapter(
                     isSelected
                 )
 
+                // Favorite heart — independent of selection mode
+                bindFavorite(holder.binding.ivFavorite, photo)
+
                 // Normal click / selection click
                 holder.itemView.setOnClickListener {
 
@@ -249,6 +252,9 @@ class PhotosAdapter(
                     isSelected
                 )
 
+                // Favorite heart — independent of selection mode
+                bindFavorite(holder.binding.ivFavorite, photo)
+
                 // Normal click / selection click
                 holder.itemView.setOnClickListener {
 
@@ -317,6 +323,40 @@ class PhotosAdapter(
                 R.drawable.ic_check_circle_outline
             }
         )
+    }
+
+    // ---------------------------------------------------------
+    // FAVORITE
+    // ---------------------------------------------------------
+
+    /**
+     * Binds the heart icon AND its own independent click listener.
+     * Tapping the heart toggles the persisted favorite flag directly
+     * and updates the icon immediately — this does NOT go through
+     * onPhotoClick/selection at all, so favoriting a photo works the
+     * same whether or not selection mode is active.
+     */
+    private fun bindFavorite(
+        favoriteIcon: android.widget.ImageView,
+        photo: PhotoListItem.Photo
+    ) {
+        val context = favoriteIcon.context
+        val photoId = photo.image.id
+
+        fun renderIcon() {
+            val isFavorite = FavoritePreferences.isFavorite(context, photoId)
+            favoriteIcon.setImageResource(
+                if (isFavorite) R.drawable.ic_red_heart
+                else R.drawable.ic_heart
+            )
+        }
+
+        renderIcon()
+
+        favoriteIcon.setOnClickListener {
+            FavoritePreferences.toggleFavorite(context, photoId)
+            renderIcon()
+        }
     }
 
     // ---------------------------------------------------------

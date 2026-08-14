@@ -24,6 +24,17 @@
             android:contentDescription="@string/photo_thumbnail"
             tools:src="@tools:sample/backgrounds/scenic" />
 
+        <!-- Favorite toggle — always visible (not just in selection
+             mode), tappable independently of the rest of the item -->
+        <ImageView
+            android:id="@+id/ivFavorite"
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:layout_gravity="top|start"
+            android:layout_margin="6dp"
+            android:src="@drawable/ic_heart"
+            android:contentDescription="@string/toggle_favorite" />
+
         <!-- Selection Checkbox -->
         <ImageView
             android:id="@+id/iv_checkbox"
