@@ -6,18 +6,13 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
+import com.example.mygallery.R
 import com.example.mygallery.databinding.BottomSheetMenuBinding
 import com.example.mygallery.repository.GalleryRepository
+import com.example.mygallery.ui.photo.FavoritesFragment
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import kotlinx.coroutines.launch
 
-/**
- * The "Menu" tab's content — NOT a full screen. It's a bottom sheet
- * that pops up over whichever screen (Album/Photos) is currently
- * showing, then dismisses back to it. See MainActivity's handling of
- * R.id.menu for why this matters (we deliberately don't let the Menu
- * tab icon become "selected").
- */
 class MenuBottomSheet : BottomSheetDialogFragment() {
 
     private var _binding: BottomSheetMenuBinding? = null
@@ -40,7 +35,17 @@ class MenuBottomSheet : BottomSheetDialogFragment() {
         loadStats()
 
         binding.btnFavorites.setOnClickListener {
-            Toast.makeText(requireContext(), "Favorites — coming soon", Toast.LENGTH_SHORT).show()
+
+            // Dismiss the sheet, then navigate the underlying Activity
+            // to FavoritesFragment — same frameContainer the bottom
+            // nav tabs use, with a back-stack entry so the system
+            // Back button returns to whichever tab was open before.
+            dismiss()
+
+            requireActivity().supportFragmentManager.beginTransaction()
+                .replace(R.id.frameContainer, FavoritesFragment())
+                .addToBackStack("favorites")
+                .commit()
         }
 
         binding.btnTrash.setOnClickListener {
@@ -56,14 +61,6 @@ class MenuBottomSheet : BottomSheetDialogFragment() {
         }
     }
 
-    /**
-     * Computes the 3 stats from the same folder data the Album screen
-     * already uses — no new Repository query type needed for Photos/
-     * Albums counts. Videos is honestly hardcoded to 0 for now: this
-     * app only queries MediaStore.Images, so there's no real video
-     * data to count yet (that's the separate "Video Support" feature
-     * from the roadmap).
-     */
     private fun loadStats() {
         viewLifecycleOwner.lifecycleScope.launch {
 

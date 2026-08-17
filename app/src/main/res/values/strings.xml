@@ -19,4 +19,9 @@
     <string name="close">Close album</string>
     <string name="photo_selection">Photo selection</string>
     <string name="toggle_favorite">Toggle favorite</string>
+
+    <string name="remove_from_favorites">Remove from favorites</string>
+    <string name="no_favorites">No Favorites Yet</string>
+    <string name="no_favorites_illustration">Illustration shown when there are no favorited photos</string>
+    <string name="delete">Delete</string>
 </resources>

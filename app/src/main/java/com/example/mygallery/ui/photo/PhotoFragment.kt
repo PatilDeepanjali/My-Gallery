@@ -47,6 +47,7 @@ import android.provider.MediaStore
 import android.widget.EditText
 import android.widget.LinearLayout
 import androidx.activity.OnBackPressedCallback
+import com.example.mygallery.utils.FavoritePreferences
 
 
 class PhotoFragment : Fragment() {
@@ -471,11 +472,7 @@ class PhotoFragment : Fragment() {
 
                     PhotoSelectionAction.FAVORITE -> {
 
-                        Toast.makeText(
-                            requireContext(),
-                            "Favorite coming soon",
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        toggleFavoriteSelected()
                     }
 
                     PhotoSelectionAction.SLIDE_SHOW -> {
@@ -562,6 +559,53 @@ class PhotoFragment : Fragment() {
             }
         }
     }
+
+
+    /**
+     * Behavior for a mixed selection (some favorited, some not):
+     * if EVERY selected photo is already favorited, this removes
+     * them all from Favorites. Otherwise, it favorites whichever
+     * selected photos aren't already favorited (existing favorites
+     * in the selection are left untouched). This matches how most
+     * gallery apps handle a bulk "Favorite" tap on a mixed selection —
+     * a single tap shouldn't accidentally unfavorite something the
+     * user didn't mean to touch.
+     */
+    private fun toggleFavoriteSelected() {
+
+        val selectedPhotos = viewModel.getSelectedPhotos()
+
+        if (selectedPhotos.isEmpty()) {
+            Toast.makeText(requireContext(), "No photos selected", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val allAlreadyFavorite = selectedPhotos.all {
+            FavoritePreferences.isFavorite(requireContext(), it.id)
+        }
+
+        if (allAlreadyFavorite) {
+
+            selectedPhotos.forEach {
+                FavoritePreferences.toggleFavorite(requireContext(), it.id)
+            }
+
+            Toast.makeText(requireContext(), "Removed from Favorites", Toast.LENGTH_SHORT).show()
+
+        } else {
+
+            selectedPhotos.forEach { photo ->
+                if (!FavoritePreferences.isFavorite(requireContext(), photo.id)) {
+                    FavoritePreferences.toggleFavorite(requireContext(), photo.id)
+                }
+            }
+
+            Toast.makeText(requireContext(), "Added to Favorites", Toast.LENGTH_SHORT).show()
+        }
+
+        viewModel.exitSelectionMode()
+    }
+
 
 
 

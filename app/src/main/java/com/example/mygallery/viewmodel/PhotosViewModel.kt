@@ -12,6 +12,7 @@ import com.example.mygallery.ui.photo.menu.SortOrder
 import com.example.mygallery.ui.photo.menu.SortType
 import com.example.mygallery.ui.state.PhotosUiState
 import com.example.mygallery.utils.DateGroupingUtil
+import com.example.mygallery.utils.FavoritePreferences
 import kotlinx.coroutines.launch
 
 class PhotosViewModel(
@@ -132,6 +133,88 @@ class PhotosViewModel(
                 PhotosUiState.Success(groupedItems)
         }
     }
+
+
+    /**
+     * Loads only the photos the user has marked favorite, across ALL
+     * albums (not just one folder). MediaStore has no concept of
+     * "favorite" — this reuses the same "load everything" query as
+     * loadPhotos(folderName = null), then filters client-side against
+     * FavoritePreferences, then runs the SAME sort + date-grouping
+     * pipeline as loadPhotos(). No new query type or state shape needed.
+     */
+    fun loadFavorites(
+        context: Context,
+        sortType: SortType,
+        sortOrder: SortOrder
+    ) {
+
+        viewModelScope.launch {
+
+            _uiState.value = PhotosUiState.Loading
+
+            val allImages = repository.getImages(context, folderName = null)
+
+            val favoriteIds = FavoritePreferences.getFavoriteIds(context)
+
+            val favoriteImages = allImages.filter { it.id in favoriteIds }
+
+            if (favoriteImages.isEmpty()) {
+                allPhotos = emptyList()
+                _uiState.value = PhotosUiState.Empty
+                return@launch
+            }
+
+            val sortedImages = sortImages(favoriteImages, sortType, sortOrder)
+
+            allPhotos = sortedImages
+
+            val groupedItems = DateGroupingUtil.groupByDate(sortedImages)
+
+            _uiState.value = PhotosUiState.Success(groupedItems)
+        }
+    }
+
+    /**
+     * Shared sort logic used by BOTH loadPhotos() and loadFavorites()
+     * — pulled out so the same sort rules apply identically regardless
+     * of which screen you're sorting.
+     */
+    private fun sortImages(
+        images: List<ImageModel>,
+        sortType: SortType,
+        sortOrder: SortOrder
+    ): List<ImageModel> {
+
+        return when (sortType) {
+
+            SortType.DATE_TAKEN,
+            SortType.LAST_MODIFIED -> {
+                if (sortOrder == SortOrder.ASCENDING) {
+                    images.sortedBy { it.dateAdded }
+                } else {
+                    images.sortedByDescending { it.dateAdded }
+                }
+            }
+
+            SortType.ALBUM_NAME -> {
+                if (sortOrder == SortOrder.ASCENDING) {
+                    images.sortedBy { it.folderName.lowercase() }
+                } else {
+                    images.sortedByDescending { it.folderName.lowercase() }
+                }
+            }
+
+            SortType.SIZE -> {
+                if (sortOrder == SortOrder.ASCENDING) {
+                    images.sortedBy { it.size }
+                } else {
+                    images.sortedByDescending { it.size }
+                }
+            }
+        }
+    }
+
 
 
     // ---------------------------------------------------------

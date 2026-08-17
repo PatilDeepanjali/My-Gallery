@@ -37,6 +37,10 @@ import com.example.mygallery.ui.photo.slideshow.SlideShowFragment
 import com.example.mygallery.utils.DateUtils
 
 import android.text.format.Formatter
+import androidx.lifecycle.ViewModelProvider
+import com.example.mygallery.utils.FavoritePreferences
+import com.example.mygallery.viewmodel.PhotosViewModel
+import com.example.mygallery.viewmodel.PhotosViewModelFactory
 import kotlinx.coroutines.launch
 
 
@@ -47,6 +51,8 @@ class PhotoPreviewFragment : Fragment() {
     private lateinit var binding: FragmentPhotoPreviewBinding
 
     private lateinit var imageList: ArrayList<ImageModel>
+
+    private lateinit var viewModel: PhotosViewModel
 
     private lateinit var repository: GalleryRepository
 
@@ -124,7 +130,11 @@ class PhotoPreviewFragment : Fragment() {
 
         repository =
             GalleryRepository()
+        val factory =
+            PhotosViewModelFactory(repository)
 
+        viewModel =
+            ViewModelProvider(this, factory)[PhotosViewModel::class.java]
 
         imageList =
             requireArguments()
@@ -214,22 +224,14 @@ class PhotoPreviewFragment : Fragment() {
 
         binding.btnFavorite.setOnClickListener {
 
-            isFavorite =
-                !isFavorite
+            val photo = imageList[clickedPosition]
 
+            FavoritePreferences.toggleFavorite(
+                requireContext(),
+                photo.id
+            )
 
-            if (isFavorite) {
-
-                binding.btnFavorite.setImageResource(
-                    R.drawable.ic_red_heart
-                )
-
-            } else {
-
-                binding.btnFavorite.setImageResource(
-                    R.drawable.ic_heart
-                )
-            }
+            updateFavoriteIcon(photo)
         }
 
 
@@ -628,6 +630,10 @@ class PhotoPreviewFragment : Fragment() {
                 )
             }
     }
+
+
+
+
 
 
     // =========================================================
@@ -1374,8 +1380,28 @@ class PhotoPreviewFragment : Fragment() {
             .show()
     }
 
+// Favourite
 
-    // =========================================================
+
+    private fun updateFavoriteIcon(
+        photo: ImageModel
+    ) {
+
+        val isFavorite =
+            FavoritePreferences.isFavorite(
+                requireContext(),
+                photo.id
+            )
+
+        binding.btnFavorite.setImageResource(
+            if (isFavorite) {
+                R.drawable.ic_red_heart
+            } else {
+                R.drawable.ic_heart
+            }
+        )
+    }
+
     // PHOTO INFO
     // =========================================================
 
@@ -1390,21 +1416,20 @@ class PhotoPreviewFragment : Fragment() {
             return
         }
 
-
         val currentImage =
             imageList[position]
-
 
         binding.tvDate.text =
             DateUtils.formatDate(
                 currentImage.dateAdded
             )
 
-
         binding.tvTime.text =
             DateUtils.formatTime(
                 currentImage.dateAdded
             )
+
+        updateFavoriteIcon(currentImage)
     }
 
 
