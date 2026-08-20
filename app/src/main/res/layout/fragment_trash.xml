@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background"
+    tools:context=".ui.photo.TrashFragment">
+
+    <!-- ================= NORMAL HEADER ================= -->
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/normalHeader"
+        android:layout_width="0dp"
+        android:layout_height="64dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <ImageButton
+            android:id="@+id/btnBack"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="8dp"
+            android:background="@android:color/transparent"
+            android:src="@drawable/ic_arrow_back"
+            android:contentDescription="@string/back"
+            app:tint="@color/onBackground"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent" />
+
+        <TextView
+            android:id="@+id/tvTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:text="Trash"
+            android:textColor="@color/onBackground"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            app:layout_constraintStart_toEndOf="@id/btnBack"
+            app:layout_constraintTop_toTopOf="@id/btnBack" />
+
+        <TextView
+            android:id="@+id/tvSubtitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="0 Photos • 0 B"
+            android:textColor="@color/onSurfaceVariant"
+            android:textSize="11sp"
+            app:layout_constraintStart_toStartOf="@id/tvTitle"
+            app:layout_constraintTop_toBottomOf="@id/tvTitle" />
+
+        <ImageButton
+            android:id="@+id/btnMenu"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginEnd="8dp"
+            android:background="@android:color/transparent"
+            android:src="@drawable/ic_more_option"
+            android:contentDescription="@string/more_options"
+            app:tint="@color/onBackground"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="@id/btnBack"
+            app:layout_constraintBottom_toBottomOf="@id/btnBack" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+
+    <!-- ================= SELECTION HEADER ================= -->
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/selectionHeader"
+        android:layout_width="0dp"
+        android:layout_height="56dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <ImageButton
+            android:id="@+id/btnExitSelection"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="8dp"
+            android:background="@android:color/transparent"
+            android:src="@drawable/ic_close"
+            android:contentDescription="Exit selection"
+            app:tint="@color/onBackground"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent" />
+
+        <TextView
+            android:id="@+id/tvSelectedCount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:text="0 / 0"
+            android:textColor="@color/onBackground"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            app:layout_constraintStart_toEndOf="@id/btnExitSelection"
+            app:layout_constraintTop_toTopOf="@id/btnExitSelection"
+            app:layout_constraintBottom_toBottomOf="@id/btnExitSelection" />
+
+        <TextView
+            android:id="@+id/tvSelectedSize"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:text="0 B"
+            android:textColor="@color/onSurfaceVariant"
+            android:textSize="12sp"
+            app:layout_constraintStart_toEndOf="@id/tvSelectedCount"
+            app:layout_constraintTop_toTopOf="@id/tvSelectedCount"
+            app:layout_constraintBottom_toBottomOf="@id/tvSelectedCount" />
+
+        <ImageButton
+            android:id="@+id/btnSelectionMenu"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginEnd="8dp"
+            android:background="@android:color/transparent"
+            android:src="@drawable/ic_more_option"
+            android:contentDescription="@string/more_options"
+            app:tint="@color/onBackground"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="@id/btnExitSelection"
+            app:layout_constraintBottom_toBottomOf="@id/btnExitSelection" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+
+    <!-- ================= PHOTO GRID ================= -->
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerTrash"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="8dp"
+        android:clipToPadding="false"
+        android:paddingStart="10dp"
+        android:paddingEnd="10dp"
+        android:paddingBottom="90dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/normalHeader"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+
+    <!-- ================= EMPTY STATE ================= -->
+
+    <LinearLayout
+        android:id="@+id/layoutEmptyState"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/normalHeader"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <ImageView
+            android:layout_width="120dp"
+            android:layout_height="120dp"
+            android:src="@drawable/ic_delete"
+            android:contentDescription="Empty trash" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="Trash is empty"
+            android:textColor="@color/onBackground"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+    </LinearLayout>
+
+
+    <!-- ================= LOADING ================= -->
+
+    <ProgressBar
+        android:id="@+id/progressBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/normalHeader"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+
+    <!-- ================= BOTTOM ACTIONS ================= -->
+
+    <LinearLayout
+        android:id="@+id/trashActionBar"
+        android:layout_width="0dp"
+        android:layout_height="64dp"
+        android:layout_marginStart="12dp"
+        android:layout_marginEnd="12dp"
+        android:layout_marginBottom="12dp"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnRestore"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="Restore"
+            android:textAllCaps="false"
+            android:textColor="@android:color/white"
+            app:backgroundTint="@color/blue_100"
+            app:cornerRadius="10dp" />
+
+        <Space
+            android:layout_width="12dp"
+            android:layout_height="1dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnDelete"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:text="Delete"
+            android:textAllCaps="false"
+            android:textColor="@android:color/white"
+            app:backgroundTint="#FF6464"
+            app:cornerRadius="10dp" />
+
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

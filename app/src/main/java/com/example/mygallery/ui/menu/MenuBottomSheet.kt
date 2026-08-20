@@ -10,6 +10,7 @@ import com.example.mygallery.R
 import com.example.mygallery.databinding.BottomSheetMenuBinding
 import com.example.mygallery.repository.GalleryRepository
 import com.example.mygallery.ui.photo.FavoritesFragment
+import com.example.mygallery.ui.photo.TrashFragment
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import kotlinx.coroutines.launch
 
@@ -49,7 +50,12 @@ class MenuBottomSheet : BottomSheetDialogFragment() {
         }
 
         binding.btnTrash.setOnClickListener {
-            Toast.makeText(requireContext(), "Trash — coming soon", Toast.LENGTH_SHORT).show()
+
+            dismiss()
+
+            requireActivity().supportFragmentManager.beginTransaction()
+                .replace(R.id.frameContainer, TrashFragment())
+                .commit()
         }
 
         binding.btnTheme.setOnClickListener {

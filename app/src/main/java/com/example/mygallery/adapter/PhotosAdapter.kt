@@ -164,7 +164,7 @@ class PhotosAdapter(
                 )
 
                 // Favorite heart — independent of selection mode
-                bindFavorite(holder.binding.ivFavorite, photo)
+                bindFavorite(holder.binding.imgFavorite, photo)
 
                 // Normal click / selection click
                 holder.itemView.setOnClickListener {
@@ -253,7 +253,7 @@ class PhotosAdapter(
                 )
 
                 // Favorite heart — independent of selection mode
-                bindFavorite(holder.binding.ivFavorite, photo)
+                bindFavorite(holder.binding.imgFavorite, photo)
 
                 // Normal click / selection click
                 holder.itemView.setOnClickListener {
@@ -344,10 +344,14 @@ class PhotosAdapter(
         val photoId = photo.image.id
 
         fun renderIcon() {
-            val isFavorite = FavoritePreferences.isFavorite(context, photoId)
+            val isFavorite =
+                FavoritePreferences.isFavorite(context, photoId)
+
             favoriteIcon.setImageResource(
-                if (isFavorite) R.drawable.ic_red_heart
-                else R.drawable.ic_heart
+                if (isFavorite)
+                    R.drawable.ic_red_heart
+                else
+                    R.drawable.ic_heart
             )
         }
 

@@ -26,15 +26,22 @@
 
         <!-- Favorite toggle — always visible (not just in selection
              mode), tappable independently of the rest of the item -->
+
+
         <FrameLayout
-            android:layout_width="25dp"
-            android:layout_height="25dp"
-            android:background="@drawable/bg_favorite_circle">
+
+            android:id="@+id/favoriteButton"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_gravity="top|start"
+            android:layout_margin="6dp"
+            android:background="@drawable/bg_favorite_circle"
+            android:elevation="2dp">
 
             <ImageView
-                android:id="@+id/btnFavorite"
-                android:layout_width="17dp"
-                android:layout_height="15dp"
+                android:id="@+id/imgFavorite"
+                android:layout_width="12dp"
+                android:layout_height="11dp"
                 android:layout_gravity="center"
                 android:src="@drawable/ic_red_heart"
                 android:contentDescription="Favorite" />

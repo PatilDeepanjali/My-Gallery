@@ -1450,16 +1450,41 @@ class PhotoFragment : Fragment() {
             .setPositiveButton(
                 "Delete"
             ) { _, _ ->
-
-                viewModel.deleteImages(
+                viewModel.moveToTrash(
                     requireContext(),
                     selectedUris
                 ) { result ->
 
-                    handleDeleteResult(
-                        result,
-                        "Deleted"
-                    )
+                    if (result.isSuccess) {
+
+                        val count =
+                            result.getOrNull() ?: 0
+
+                        Toast.makeText(
+                            requireContext(),
+                            "$count item${if (count > 1) "s" else ""} moved to Trash",
+                            Toast.LENGTH_SHORT
+                        ).show()
+
+                        viewModel.exitSelectionMode()
+
+                        viewModel.loadPhotos(
+                            requireContext(),
+                            folderName,
+                            currentSortType,
+                            currentSortOrder
+                        )
+
+                    } else {
+
+                        Toast.makeText(
+                            requireContext(),
+                            "Unable to move to Trash: ${
+                                result.exceptionOrNull()?.message
+                            }",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
                 }
             }
             .show()
@@ -2003,4 +2028,7 @@ class PhotoFragment : Fragment() {
             }
         }
     }
+
+
+
 }

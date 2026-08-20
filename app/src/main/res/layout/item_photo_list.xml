@@ -68,20 +68,17 @@
         </LinearLayout>
 
         <!-- Favorite toggle -->
-        <FrameLayout
-            android:layout_width="25dp"
-            android:layout_height="25dp"
-            android:background="@drawable/bg_favorite_circle">
+
 
             <ImageView
-                android:id="@+id/btnFavorite"
-                android:layout_width="17dp"
-                android:layout_height="15dp"
+                android:id="@+id/imgFavorite"
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:background="@drawable/bg_favorite_circle"
                 android:layout_gravity="center"
-                android:src="@drawable/ic_red_heart"
+                android:src="@drawable/ic_heart"
                 android:contentDescription="Favorite" />
 
-        </FrameLayout>
 
         <!-- Selection Checkbox -->
         <ImageView

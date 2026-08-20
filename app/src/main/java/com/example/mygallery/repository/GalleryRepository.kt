@@ -1,15 +1,19 @@
 package com.example.mygallery.repository
 
 import android.app.RecoverableSecurityException
+import android.content.ContentResolver
 import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import android.provider.MediaStore
 import com.example.mygallery.model.DeleteResult
 import com.example.mygallery.model.GalleryFolder
 import com.example.mygallery.model.ImageModel
+import com.example.mygallery.model.TrashItem
+import com.example.mygallery.utils.TrashManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -30,7 +34,8 @@ class GalleryRepository {
             MediaStore.Images.Media.BUCKET_DISPLAY_NAME,
             MediaStore.Images.Media.DATE_ADDED,
             MediaStore.Images.Media.SIZE,
-            MediaStore.Images.Media.MIME_TYPE
+            MediaStore.Images.Media.MIME_TYPE,
+            MediaStore.Images.Media.IS_TRASHED,
         )
 
         val collection = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
@@ -127,6 +132,180 @@ class GalleryRepository {
             }
         }
     }
+
+
+    suspend fun getTrashedImages(
+        context: Context
+    ): ArrayList<ImageModel> {
+
+        return withContext(Dispatchers.IO) {
+
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+                return@withContext ArrayList()
+            }
+
+            val imageList = ArrayList<ImageModel>()
+
+            val projection = arrayOf(
+                MediaStore.Images.Media._ID,
+                MediaStore.Images.Media.DISPLAY_NAME,
+                MediaStore.Images.Media.BUCKET_DISPLAY_NAME,
+                MediaStore.Images.Media.DATE_ADDED,
+                MediaStore.Images.Media.SIZE,
+                MediaStore.Images.Media.MIME_TYPE,
+                MediaStore.Images.Media.IS_TRASHED
+            )
+
+            val collection =
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+
+            val queryArgs = Bundle().apply {
+
+                putInt(
+                    MediaStore.QUERY_ARG_MATCH_TRASHED,
+                    MediaStore.MATCH_ONLY
+                )
+
+                putString(
+                    ContentResolver.QUERY_ARG_SQL_SELECTION,
+                    "${MediaStore.Images.Media.IS_TRASHED} = 1"
+                )
+            }
+
+            context.contentResolver.query(
+                collection,
+                projection,
+                queryArgs,
+                null
+            )?.use { cursor ->
+
+                val idColumn =
+                    cursor.getColumnIndexOrThrow(
+                        MediaStore.Images.Media._ID
+                    )
+
+                val nameColumn =
+                    cursor.getColumnIndexOrThrow(
+                        MediaStore.Images.Media.DISPLAY_NAME
+                    )
+
+                val folderColumn =
+                    cursor.getColumnIndexOrThrow(
+                        MediaStore.Images.Media.BUCKET_DISPLAY_NAME
+                    )
+
+                val dateColumn =
+                    cursor.getColumnIndexOrThrow(
+                        MediaStore.Images.Media.DATE_ADDED
+                    )
+
+                val sizeColumn =
+                    cursor.getColumnIndexOrThrow(
+                        MediaStore.Images.Media.SIZE
+                    )
+
+                val mimeColumn =
+                    cursor.getColumnIndexOrThrow(
+                        MediaStore.Images.Media.MIME_TYPE
+                    )
+
+                while (cursor.moveToNext()) {
+
+                    val id =
+                        cursor.getLong(idColumn)
+
+                    val name =
+                        cursor.getString(nameColumn)
+
+                    val folderName =
+                        cursor.getString(folderColumn)
+                            ?: "Unknown"
+
+                    val dateAdded =
+                        cursor.getLong(dateColumn)
+
+                    val size =
+                        cursor.getLong(sizeColumn)
+
+                    val mimeType =
+                        cursor.getString(mimeColumn)
+                            ?: ""
+
+                    val imageUri =
+                        ContentUris.withAppendedId(
+                            collection,
+                            id
+                        )
+
+                    imageList.add(
+                        ImageModel(
+                            id = id,
+                            name = name,
+                            uri = imageUri,
+                            folderName = folderName,
+                            dateAdded = dateAdded,
+                            size = size,
+                            mimeType = mimeType
+                        )
+                    )
+                }
+            }
+
+            imageList
+        }
+    }
+
+
+    suspend fun trashImages(
+        context: Context,
+        uris: List<Uri>
+    ): Result<Int> {
+
+        return withContext(Dispatchers.IO) {
+
+            try {
+
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+                    return@withContext Result.failure(
+                        Exception(
+                            "Trash is supported on Android 11 and above"
+                        )
+                    )
+                }
+
+                var trashedCount = 0
+
+                for (uri in uris) {
+
+                    val values = ContentValues().apply {
+                        put(
+                            MediaStore.Images.Media.IS_TRASHED,
+                            1
+                        )
+                    }
+
+                    val updated =
+                        context.contentResolver.update(
+                            uri,
+                            values,
+                            null,
+                            null
+                        )
+
+                    if (updated > 0) {
+                        trashedCount++
+                    }
+                }
+
+                Result.success(trashedCount)
+
+            } catch (e: Exception) {
+
+                Result.failure(e)
+            }
+        }
+    }
+
 
     // Creating new Album — deliberately does NOT touch the filesystem.
     fun createAlbum(context: Context, albumName: String): Result<String> {
@@ -227,6 +406,53 @@ class GalleryRepository {
             }
         }
     }
+
+    suspend fun moveImageToTrash(
+        context: Context,
+        image: ImageModel
+    ): Result<TrashItem> {
+
+        return TrashManager.moveToTrash(
+            context,
+            image
+        )
+    }
+
+    suspend fun moveImagesToTrash(
+        context: Context,
+        images: List<ImageModel>
+    ): Result<Int> {
+
+        return try {
+
+            var movedCount = 0
+
+            for (image in images) {
+
+                val result =
+                    moveImageToTrash(
+                        context,
+                        image
+                    )
+
+                if (result.isSuccess) {
+                    movedCount++
+                } else {
+                    return Result.failure(
+                        result.exceptionOrNull()
+                            ?: Exception("Unable to move image to Trash")
+                    )
+                }
+            }
+
+            Result.success(movedCount)
+
+        } catch (e: Exception) {
+
+            Result.failure(e)
+        }
+    }
+
 
     suspend fun copyImages(
         context: Context,
