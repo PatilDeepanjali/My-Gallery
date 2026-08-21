@@ -1,6 +1,5 @@
 package com.example.mygallery.viewmodel
 
-import com.example.mygallery.model.TrashItem
 import android.content.Context
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -297,6 +296,26 @@ class PhotosViewModel(
     }
 
 
+    // Trash Images
+    fun moveImagesToTrash(
+        context: Context,
+        images: List<ImageModel>,
+        onResult: (Result<Int>) -> Unit
+    ) {
+
+        viewModelScope.launch {
+
+            val result =
+                repository.moveImagesToTrash(
+                    context,
+                    images
+                )
+
+            onResult(result)
+        }
+    }
+
+
     // ---------------------------------------------------------
     // Delete
     // ---------------------------------------------------------
@@ -319,21 +338,5 @@ class PhotosViewModel(
         }
     }
 
-    fun moveToTrash(
-        context: Context,
-        uris: List<android.net.Uri>,
-        onResult: (Result<Int>) -> Unit
-    ) {
 
-        viewModelScope.launch {
-
-            val result =
-                repository.trashImages(
-                    context,
-                    uris
-                )
-
-            onResult(result)
-        }
-    }
 }

@@ -5,12 +5,15 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.PopupMenu
+import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.GridLayoutManager
 import com.example.mygallery.adapter.TrashAdapter
 import com.example.mygallery.databinding.FragmentTrashBinding
 import com.example.mygallery.repository.GalleryRepository
+import com.example.mygallery.ui.MainActivity
 import com.example.mygallery.viewmodel.TrashViewModel
 import com.example.mygallery.viewmodel.TrashViewModelFactory
 
@@ -30,6 +33,29 @@ class TrashFragment : Fragment() {
             TrashViewModelFactory(repository)
         )[TrashViewModel::class.java]
     }
+
+
+    // ---------------------------------------------------------
+    // Back button callback
+    // ---------------------------------------------------------
+
+    private val backPressedCallback =
+        object : OnBackPressedCallback(true) {
+
+            override fun handleOnBackPressed() {
+
+                if (trashAdapter.isSelectionMode) {
+
+                    // First Back → exit selection mode
+                    exitTrashSelection()
+
+                } else {
+
+                    // Normal Trash screen → go back
+                    parentFragmentManager.popBackStack()
+                }
+            }
+        }
 
 
     // ---------------------------------------------------------
@@ -69,6 +95,18 @@ class TrashFragment : Fragment() {
 
 
         // -----------------------------------------------------
+        // System Back Button
+        // -----------------------------------------------------
+
+        requireActivity()
+            .onBackPressedDispatcher
+            .addCallback(
+                viewLifecycleOwner,
+                backPressedCallback
+            )
+
+
+        // -----------------------------------------------------
         // Adapter
         // -----------------------------------------------------
 
@@ -105,6 +143,23 @@ class TrashFragment : Fragment() {
 
 
         // -----------------------------------------------------
+        // Back Arrow
+        // -----------------------------------------------------
+
+        binding.btnBack.setOnClickListener {
+
+            if (trashAdapter.isSelectionMode) {
+
+                exitTrashSelection()
+
+            } else {
+
+                parentFragmentManager.popBackStack()
+            }
+        }
+
+
+        // -----------------------------------------------------
         // Normal Menu
         // -----------------------------------------------------
 
@@ -121,6 +176,18 @@ class TrashFragment : Fragment() {
         binding.btnExitSelection.setOnClickListener {
 
             exitTrashSelection()
+        }
+
+
+        binding.btnRestore.setOnClickListener {
+
+            restoreSelectedPhotos()
+        }
+
+
+        binding.btnDelete.setOnClickListener {
+
+            permanentlyDeleteSelectedPhotos()
         }
 
 
@@ -159,12 +226,10 @@ class TrashFragment : Fragment() {
                     photos
                 )
 
-
                 val totalSize =
                     photos.sumOf {
                         it.size
                     }
-
 
                 binding.tvSubtitle.text =
                     "${photos.size} Photos • ${
@@ -196,11 +261,9 @@ class TrashFragment : Fragment() {
                 binding.btnMenu
             )
 
-
         popup.menu.add(
             "Select Images"
         )
-
 
         popup.setOnMenuItemClickListener { item ->
 
@@ -217,7 +280,6 @@ class TrashFragment : Fragment() {
             }
         }
 
-
         popup.show()
     }
 
@@ -233,23 +295,156 @@ class TrashFragment : Fragment() {
         }
 
 
+        // Hide MainActivity bottom navigation
+        // to match the Figma selection screen.
+        (activity as? MainActivity)
+            ?.hideBottomNavigation()
+
+
+        // Hide normal header
         binding.normalHeader.visibility =
             View.GONE
 
+
+        // Show selection header
         binding.selectionHeader.visibility =
             View.VISIBLE
 
+
+        // Show Restore/Delete bar
         binding.trashActionBar.visibility =
             View.VISIBLE
 
 
-        // Start with ZERO selected.
+        // Start with ZERO selected
         trashAdapter.startSelectionMode()
 
 
         updateSelectionInfo()
     }
 
+
+
+
+
+
+    // ---------------------------------------------------------
+// Restore Selected Photos
+// ---------------------------------------------------------
+
+    private fun restoreSelectedPhotos() {
+
+        val selectedPhotos =
+            trashAdapter.getSelectedPhotos()
+
+        if (selectedPhotos.isEmpty()) {
+
+            Toast.makeText(
+                requireContext(),
+                "Select at least one photo",
+                Toast.LENGTH_SHORT
+            ).show()
+
+            return
+        }
+
+
+        viewModel.restoreImages(
+            requireContext(),
+            selectedPhotos
+        ) { restoredCount ->
+
+            if (restoredCount == selectedPhotos.size) {
+
+                Toast.makeText(
+                    requireContext(),
+                    "Restored $restoredCount item(s)",
+                    Toast.LENGTH_SHORT
+                ).show()
+
+            } else {
+
+                Toast.makeText(
+                    requireContext(),
+                    "Restored $restoredCount of ${selectedPhotos.size} item(s)",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+
+            exitTrashSelection()
+        }
+    }
+
+
+    // ---------------------------------------------------------
+// Permanently Delete Selected Photos
+// ---------------------------------------------------------
+
+    private fun permanentlyDeleteSelectedPhotos() {
+
+        val selectedPhotos =
+            trashAdapter.getSelectedPhotos()
+
+        if (selectedPhotos.isEmpty()) {
+
+            Toast.makeText(
+                requireContext(),
+                "Select at least one photo",
+                Toast.LENGTH_SHORT
+            ).show()
+
+            return
+        }
+
+
+        val count =
+            selectedPhotos.size
+
+
+        androidx.appcompat.app.AlertDialog.Builder(
+            requireContext()
+        )
+            .setTitle(
+                "Delete permanently?"
+            )
+            .setMessage(
+                "These $count item${if (count > 1) "s" else ""} will be permanently deleted and cannot be restored."
+            )
+            .setNegativeButton(
+                "Cancel",
+                null
+            )
+            .setPositiveButton(
+                "Delete"
+            ) { _, _ ->
+
+                viewModel.permanentlyDeleteImages(
+                    requireContext(),
+                    selectedPhotos
+                ) { deletedCount ->
+
+                    if (deletedCount == count) {
+
+                        Toast.makeText(
+                            requireContext(),
+                            "Deleted $deletedCount item(s) permanently",
+                            Toast.LENGTH_SHORT
+                        ).show()
+
+                    } else {
+
+                        Toast.makeText(
+                            requireContext(),
+                            "Deleted $deletedCount of $count item(s)",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+
+                    exitTrashSelection()
+                }
+            }
+            .show()
+    }
 
     // ---------------------------------------------------------
     // Exit Selection Mode
@@ -260,12 +455,22 @@ class TrashFragment : Fragment() {
         trashAdapter.exitSelectionMode()
 
 
+        // Show MainActivity bottom navigation again
+        (activity as? MainActivity)
+            ?.showBottomNavigation()
+
+
+        // Hide selection header
         binding.selectionHeader.visibility =
             View.GONE
 
+
+        // Hide action bar
         binding.trashActionBar.visibility =
             View.GONE
 
+
+        // Show normal header
         binding.normalHeader.visibility =
             View.VISIBLE
     }
@@ -356,6 +561,13 @@ class TrashFragment : Fragment() {
     // ---------------------------------------------------------
 
     override fun onDestroyView() {
+
+        // Safety:
+        // If Fragment leaves while selection mode is active,
+        // make sure MainActivity bottom navigation comes back.
+
+        (activity as? MainActivity)
+            ?.showBottomNavigation()
 
         super.onDestroyView()
 

@@ -163,8 +163,13 @@ class PhotosAdapter(
                     isSelected
                 )
 
-                // Favorite heart — independent of selection mode
-                bindFavorite(holder.binding.imgFavorite, photo)
+                // Favorite badge — the WHOLE badge (circle + heart),
+                // only visible when this photo is actually favorited
+                bindFavorite(
+                    holder.binding.favoriteButton,
+                    holder.binding.imgFavorite,
+                    photo
+                )
 
                 // Normal click / selection click
                 holder.itemView.setOnClickListener {
@@ -252,8 +257,12 @@ class PhotosAdapter(
                     isSelected
                 )
 
-                // Favorite heart — independent of selection mode
-                bindFavorite(holder.binding.imgFavorite, photo)
+                // Favorite badge
+                bindFavorite(
+                    holder.binding.favoriteButton,
+                    holder.binding.imgFavorite,
+                    photo
+                )
 
                 // Normal click / selection click
                 holder.itemView.setOnClickListener {
@@ -330,36 +339,37 @@ class PhotosAdapter(
     // ---------------------------------------------------------
 
     /**
-     * Binds the heart icon AND its own independent click listener.
-     * Tapping the heart toggles the persisted favorite flag directly
-     * and updates the icon immediately — this does NOT go through
-     * onPhotoClick/selection at all, so favoriting a photo works the
-     * same whether or not selection mode is active.
+     * Toggles the ENTIRE badge (white circle + heart), not just the
+     * heart icon's image resource. Previously only the icon's drawable
+     * was swapped between filled/outline — the circular background
+     * container itself was never hidden, which is why a faint white
+     * circle appeared on EVERY photo regardless of favorite status.
+     * Now the whole container starts GONE and only becomes VISIBLE
+     * for photos that are actually favorited.
      */
     private fun bindFavorite(
+        badgeContainer: View,
         favoriteIcon: android.widget.ImageView,
         photo: PhotoListItem.Photo
     ) {
         val context = favoriteIcon.context
         val photoId = photo.image.id
 
-        fun renderIcon() {
-            val isFavorite =
-                FavoritePreferences.isFavorite(context, photoId)
-
-            favoriteIcon.setImageResource(
-                if (isFavorite)
-                    R.drawable.ic_red_heart
-                else
-                    R.drawable.ic_heart
-            )
+        fun render() {
+            val isFavorite = FavoritePreferences.isFavorite(context, photoId)
+            badgeContainer.visibility =
+                if (isFavorite) View.VISIBLE else View.GONE
         }
 
-        renderIcon()
+        render()
 
-        favoriteIcon.setOnClickListener {
+        // Tapping the visible badge unfavorites directly from the
+        // grid/list. There's nothing to tap when it's hidden, so this
+        // can't be used to newly favorite a photo — that happens via
+        // the selection menu or the Preview screen instead.
+        badgeContainer.setOnClickListener {
             FavoritePreferences.toggleFavorite(context, photoId)
-            renderIcon()
+            render()
         }
     }
 

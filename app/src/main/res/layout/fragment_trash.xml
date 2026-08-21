@@ -9,7 +9,10 @@
     android:background="@color/background"
     tools:context=".ui.photo.TrashFragment">
 
-    <!-- ================= NORMAL HEADER ================= -->
+
+    <!-- ===================================================== -->
+    <!-- NORMAL HEADER                                         -->
+    <!-- ===================================================== -->
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/normalHeader"
@@ -70,7 +73,9 @@
     </androidx.constraintlayout.widget.ConstraintLayout>
 
 
-    <!-- ================= SELECTION HEADER ================= -->
+    <!-- ===================================================== -->
+    <!-- SELECTION HEADER                                      -->
+    <!-- ===================================================== -->
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/selectionHeader"
@@ -135,7 +140,21 @@
     </androidx.constraintlayout.widget.ConstraintLayout>
 
 
-    <!-- ================= PHOTO GRID ================= -->
+    <!-- ===================================================== -->
+    <!-- HEADER BARRIER                                       -->
+    <!-- ===================================================== -->
+
+    <androidx.constraintlayout.widget.Barrier
+        android:id="@+id/headerBottom"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:barrierDirection="bottom"
+        app:constraint_referenced_ids="normalHeader,selectionHeader" />
+
+
+    <!-- ===================================================== -->
+    <!-- PHOTO GRID                                            -->
+    <!-- ===================================================== -->
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerTrash"
@@ -147,13 +166,15 @@
         android:paddingEnd="10dp"
         android:paddingBottom="90dp"
         android:visibility="gone"
-        app:layout_constraintTop_toBottomOf="@id/normalHeader"
+        app:layout_constraintTop_toBottomOf="@id/headerBottom"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
 
-    <!-- ================= EMPTY STATE ================= -->
+    <!-- ===================================================== -->
+    <!-- EMPTY STATE                                           -->
+    <!-- ===================================================== -->
 
     <LinearLayout
         android:id="@+id/layoutEmptyState"
@@ -162,7 +183,7 @@
         android:gravity="center"
         android:orientation="vertical"
         android:visibility="gone"
-        app:layout_constraintTop_toBottomOf="@id/normalHeader"
+        app:layout_constraintTop_toBottomOf="@id/headerBottom"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
@@ -185,20 +206,24 @@
     </LinearLayout>
 
 
-    <!-- ================= LOADING ================= -->
+    <!-- ===================================================== -->
+    <!-- LOADING                                               -->
+    <!-- ===================================================== -->
 
     <ProgressBar
         android:id="@+id/progressBar"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:visibility="gone"
-        app:layout_constraintTop_toBottomOf="@id/normalHeader"
+        app:layout_constraintTop_toBottomOf="@id/headerBottom"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
 
-    <!-- ================= BOTTOM ACTIONS ================= -->
+    <!-- ===================================================== -->
+    <!-- BOTTOM TRASH ACTION BAR                               -->
+    <!-- ===================================================== -->
 
     <LinearLayout
         android:id="@+id/trashActionBar"
@@ -210,6 +235,7 @@
         android:gravity="center"
         android:orientation="horizontal"
         android:visibility="gone"
+        android:elevation="8dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">

@@ -1,13 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
+
 <androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background">
+    android:background="@color/background"
+    tools:context=".ui.photo.FavoritesFragment">
 
-    <!-- Normal header -->
+
+    <!-- ===================================================== -->
+    <!-- NORMAL HEADER                                         -->
+    <!-- ===================================================== -->
+
     <ImageButton
         android:id="@+id/btnBack"
         android:layout_width="40dp"
@@ -17,8 +23,10 @@
         android:background="@android:color/transparent"
         android:src="@drawable/ic_arrow_back"
         android:contentDescription="@string/back"
+        app:tint="@color/onBackground"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
+
 
     <TextView
         android:id="@+id/tvTitle"
@@ -29,10 +37,11 @@
         android:textColor="@color/onBackground"
         android:textSize="24sp"
         android:textStyle="bold"
-        app:layout_constraintBottom_toBottomOf="@id/btnBack"
-        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@id/btnBack"
-        app:layout_constraintTop_toTopOf="@id/btnBack" />
+        app:layout_constraintEnd_toStartOf="@id/btnMenu"
+        app:layout_constraintTop_toTopOf="@id/btnBack"
+        app:layout_constraintBottom_toBottomOf="@id/btnBack" />
+
 
     <TextView
         android:id="@+id/tvSubtitle"
@@ -45,25 +54,52 @@
         app:layout_constraintStart_toStartOf="@id/tvTitle"
         app:layout_constraintTop_toBottomOf="@id/btnBack" />
 
+
+    <!-- Normal three-dot menu -->
+
+    <ImageButton
+        android:id="@+id/btnMenu"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginEnd="8dp"
+        android:background="@android:color/transparent"
+        android:src="@drawable/ic_more_option"
+        android:contentDescription="@string/more_options"
+        app:tint="@color/onBackground"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@id/btnBack"
+        app:layout_constraintBottom_toBottomOf="@id/btnBack" />
+
+
+    <!-- Group used to hide the complete normal header -->
+
     <androidx.constraintlayout.widget.Group
         android:id="@+id/groupNormalHeader"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        app:constraint_referenced_ids="btnBack,tvTitle,tvSubtitle" />
+        app:constraint_referenced_ids="btnBack,tvTitle,tvSubtitle,btnMenu" />
 
-    <!-- Selection header -->
+
+    <!-- ===================================================== -->
+    <!-- SELECTION HEADER                                      -->
+    <!-- ===================================================== -->
+
     <LinearLayout
         android:id="@+id/selectionHeader"
         android:layout_width="0dp"
         android:layout_height="56dp"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:paddingHorizontal="8dp"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
         android:visibility="gone"
-        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        tools:visibility="gone">
+        tools:visibility="visible">
+
+
+        <!-- Close selection -->
 
         <ImageButton
             android:id="@+id/btnExitSelection"
@@ -71,39 +107,54 @@
             android:layout_height="36dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_close"
-            android:contentDescription="@string/close" />
+            android:contentDescription="@string/close"
+            app:tint="@color/onBackground" />
+
+
+        <!-- Selected count -->
 
         <TextView
             android:id="@+id/tvSelectedCount"
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
             android:layout_marginStart="8dp"
-            android:text="0 Selected"
+            android:text="0 / 0"
             android:textColor="@color/onBackground"
             android:textSize="15sp"
             android:textStyle="bold" />
 
-        <ImageButton
-            android:id="@+id/btnUnfavoriteSelected"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_heart"
-            android:contentDescription="@string/remove_from_favorites" />
+
+        <!-- Selected size -->
+
+        <TextView
+            android:id="@+id/tvSelectedSize"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="5dp"
+            android:text="0 B"
+            android:textColor="@color/onSurfaceVariant"
+            android:textSize="12sp" />
+
+
+        <!-- Selection three-dot menu -->
 
         <ImageButton
-            android:id="@+id/btnDeleteSelected"
+            android:id="@+id/btnSelectionMenu"
             android:layout_width="36dp"
             android:layout_height="36dp"
-            android:layout_marginStart="4dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_delete"
-            android:contentDescription="@string/delete" />
+            android:src="@drawable/ic_more_option"
+            android:contentDescription="@string/more_options"
+            app:tint="@color/onBackground" />
 
     </LinearLayout>
 
-    <!-- Photos grid -->
+
+    <!-- ===================================================== -->
+    <!-- FAVORITE PHOTOS GRID                                  -->
+    <!-- ===================================================== -->
+
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerFavorites"
         android:layout_width="0dp"
@@ -114,21 +165,31 @@
         android:paddingEnd="10dp"
         android:paddingBottom="16dp"
         android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tvSubtitle" />
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tvSubtitle"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
+
+    <!-- ===================================================== -->
+    <!-- LOADING                                               -->
+    <!-- ===================================================== -->
 
     <ProgressBar
         android:id="@+id/progressBar"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toBottomOf="@id/tvSubtitle"
-        tools:visibility="visible" />
+        app:layout_constraintBottom_toBottomOf="parent"
+        tools:visibility="gone" />
+
+
+    <!-- ===================================================== -->
+    <!-- EMPTY FAVORITES STATE                                 -->
+    <!-- ===================================================== -->
 
     <LinearLayout
         android:id="@+id/layoutEmptyState"
@@ -137,11 +198,12 @@
         android:orientation="vertical"
         android:gravity="center"
         android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toBottomOf="@id/tvSubtitle"
-        tools:visibility="visible">
+        app:layout_constraintBottom_toBottomOf="parent"
+        tools:visibility="gone">
+
 
         <ImageView
             android:layout_width="140dp"
@@ -149,14 +211,15 @@
             android:src="@drawable/ic_no_albums"
             android:contentDescription="@string/no_favorites_illustration" />
 
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             android:text="@string/no_favorites"
+            android:textColor="@color/onBackground"
             android:textSize="16sp"
-            android:textStyle="bold"
-            android:textColor="@color/onBackground" />
+            android:textStyle="bold" />
 
     </LinearLayout>
 

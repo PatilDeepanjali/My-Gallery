@@ -33,6 +33,7 @@ object TrashManager {
                     safeFileName
                 )
 
+            // Copy original image to Trash folder
             resolver.openInputStream(
                 image.uri
             )?.use { input ->
@@ -43,12 +44,11 @@ object TrashManager {
                 }
 
             } ?: return Result.failure(
-                Exception(
-                    "Unable to read image"
-                )
+                Exception("Unable to read image")
             )
 
 
+            // Create Trash metadata
             val trashItem =
                 TrashItem(
 
@@ -79,42 +79,17 @@ object TrashManager {
                 )
 
 
-            // Save metadata first.
+            // Save Trash metadata
             TrashStorage.save(
                 context,
                 trashItem
             )
 
 
-            // Remove the original MediaStore item.
-            val deleted =
-                resolver.delete(
-                    image.uri,
-                    null,
-                    null
-                )
-
-
-            if (deleted <= 0) {
-
-                // Original could not be deleted.
-                // Remove the Trash copy and metadata
-                // so we don't create an inconsistent item.
-
-                trashFile.delete()
-
-                TrashStorage.remove(
-                    context,
-                    image.id
-                )
-
-                return Result.failure(
-                    Exception(
-                        "Unable to remove original image"
-                    )
-                )
-            }
-
+            // IMPORTANT:
+            // Do NOT delete the original here.
+            // Android 10 requires the proper MediaStore
+            // user-confirmation flow.
 
             Result.success(
                 trashItem
@@ -123,6 +98,21 @@ object TrashManager {
         } catch (e: Exception) {
 
             Result.failure(e)
+        }
+    }
+
+
+    fun deleteTrashCopy(
+        trashItem: TrashItem
+    ) {
+
+        try {
+            File(
+                trashItem.trashFilePath
+            ).delete()
+
+        } catch (_: Exception) {
+            // Ignore cleanup failure
         }
     }
 }

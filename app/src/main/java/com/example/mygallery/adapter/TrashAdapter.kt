@@ -1,16 +1,18 @@
 package com.example.mygallery.adapter
 
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.example.mygallery.R
 import com.example.mygallery.databinding.ItemTrashPhotoBinding
-import com.example.mygallery.model.ImageModel
+import com.example.mygallery.model.TrashItem
+import java.io.File
 
 class TrashAdapter(
-    private var photos: List<ImageModel>,
-    private val onPhotoClick: (ImageModel) -> Unit
+    private var photos: List<TrashItem>,
+    private val onPhotoClick: (TrashItem) -> Unit
 ) : RecyclerView.Adapter<TrashAdapter.TrashViewHolder>() {
 
     private val selectedIds =
@@ -23,15 +25,15 @@ class TrashAdapter(
         private val binding: ItemTrashPhotoBinding
     ) : RecyclerView.ViewHolder(binding.root) {
 
-        fun bind(photo: ImageModel) {
+        fun bind(photo: TrashItem) {
 
             Glide.with(binding.imgPhoto.context)
-                .load(photo.uri)
+                .load(File(photo.trashFilePath))
                 .centerCrop()
                 .into(binding.imgPhoto)
 
-            // For now we show 29 days as in the Figma.
-            binding.tvDaysRemaining.text = "29 days"
+            binding.tvDaysRemaining.text =
+                calculateDaysRemaining(photo.trashedAt)
 
             updateSelectionUI(photo)
 
@@ -41,13 +43,13 @@ class TrashAdapter(
         }
 
         private fun updateSelectionUI(
-            photo: ImageModel
+            photo: TrashItem
         ) {
 
             if (isSelectionMode) {
 
                 binding.imgSelection.visibility =
-                    android.view.View.VISIBLE
+                    View.VISIBLE
 
                 binding.imgSelection.setImageResource(
                     if (selectedIds.contains(photo.id)) {
@@ -60,7 +62,7 @@ class TrashAdapter(
             } else {
 
                 binding.imgSelection.visibility =
-                    android.view.View.GONE
+                    View.GONE
             }
         }
     }
@@ -85,14 +87,16 @@ class TrashAdapter(
         position: Int
     ) {
 
-        holder.bind(photos[position])
+        holder.bind(
+            photos[position]
+        )
     }
 
     override fun getItemCount(): Int =
         photos.size
 
     fun submitList(
-        newPhotos: List<ImageModel>
+        newPhotos: List<TrashItem>
     ) {
 
         photos = newPhotos
@@ -100,18 +104,6 @@ class TrashAdapter(
         selectedIds.retainAll(
             photos.map { it.id }.toSet()
         )
-
-        notifyDataSetChanged()
-    }
-
-    fun enterSelectionMode(
-        photoId: Long
-    ) {
-
-        isSelectionMode = true
-
-        selectedIds.clear()
-        selectedIds.add(photoId)
 
         notifyDataSetChanged()
     }
@@ -130,7 +122,6 @@ class TrashAdapter(
         }
 
         if (selectedIds.isEmpty()) {
-
             isSelectionMode = false
         }
 
@@ -145,21 +136,38 @@ class TrashAdapter(
         notifyDataSetChanged()
     }
 
-    fun getSelectedPhotos(): List<ImageModel> {
-
-        return photos.filter {
-            selectedIds.contains(it.id)
-        }
-    }
     fun startSelectionMode() {
 
         isSelectionMode = true
-
         selectedIds.clear()
 
         notifyDataSetChanged()
     }
 
+    fun getSelectedPhotos(): List<TrashItem> {
+
+        return photos.filter {
+            selectedIds.contains(it.id)
+        }
+    }
+
     fun getSelectedCount(): Int =
         selectedIds.size
+
+    private fun calculateDaysRemaining(
+        trashedAt: Long
+    ): String {
+
+        val thirtyDays =
+            30L * 24L * 60L * 60L * 1000L
+
+        val elapsed =
+            System.currentTimeMillis() - trashedAt
+
+        val remaining =
+            30L -
+                    (elapsed / (24L * 60L * 60L * 1000L))
+
+        return "${remaining.coerceAtLeast(0)} days"
+    }
 }

@@ -47,7 +47,10 @@ import android.provider.MediaStore
 import android.widget.EditText
 import android.widget.LinearLayout
 import androidx.activity.OnBackPressedCallback
+import com.example.mygallery.model.TrashItem
 import com.example.mygallery.utils.FavoritePreferences
+import com.example.mygallery.utils.TrashManager
+import com.example.mygallery.utils.TrashStorage
 
 
 class PhotoFragment : Fragment() {
@@ -77,6 +80,9 @@ class PhotoFragment : Fragment() {
     private var pendingDeleteRetryUris: List<android.net.Uri>? = null
 
     private var pendingDeleteSuccessMessage = "Deleted"
+
+
+    private var pendingTrashItems: List<TrashItem> = emptyList()
 
 
     // ---------------------------------------------------------
@@ -1428,20 +1434,15 @@ class PhotoFragment : Fragment() {
             return
         }
 
-
-        val selectedUris =
-            selectedPhotos.map { it.uri }
-
         val count =
-            selectedUris.size
-
+            selectedPhotos.size
 
         AlertDialog.Builder(requireContext())
             .setTitle(
                 "Delete $count item${if (count > 1) "s" else ""}?"
             )
             .setMessage(
-                "This will permanently delete the selected items from your device. This cannot be undone."
+                "The selected items will be moved to Trash."
             )
             .setNegativeButton(
                 "Cancel",
@@ -1450,44 +1451,94 @@ class PhotoFragment : Fragment() {
             .setPositiveButton(
                 "Delete"
             ) { _, _ ->
-                viewModel.moveToTrash(
-                    requireContext(),
-                    selectedUris
-                ) { result ->
 
-                    if (result.isSuccess) {
-
-                        val count =
-                            result.getOrNull() ?: 0
-
-                        Toast.makeText(
-                            requireContext(),
-                            "$count item${if (count > 1) "s" else ""} moved to Trash",
-                            Toast.LENGTH_SHORT
-                        ).show()
-
-                        viewModel.exitSelectionMode()
-
-                        viewModel.loadPhotos(
-                            requireContext(),
-                            folderName,
-                            currentSortType,
-                            currentSortOrder
-                        )
-
-                    } else {
-
-                        Toast.makeText(
-                            requireContext(),
-                            "Unable to move to Trash: ${
-                                result.exceptionOrNull()?.message
-                            }",
-                            Toast.LENGTH_LONG
-                        ).show()
-                    }
-                }
+                moveSelectedPhotosToTrash(
+                    selectedPhotos
+                )
             }
             .show()
+    }
+
+    private fun moveSelectedPhotosToTrash(
+        photos: List<ImageModel>
+    ) {
+
+        viewModel.moveImagesToTrash(
+            requireContext(),
+            photos
+        ) { result ->
+
+            if (result.isFailure) {
+
+                Toast.makeText(
+                    requireContext(),
+                    "Unable to move to Trash: ${
+                        result.exceptionOrNull()?.message
+                    }",
+                    Toast.LENGTH_LONG
+                ).show()
+
+                return@moveImagesToTrash
+            }
+
+            /*
+             * The Trash copies are now created.
+             *
+             * We still need to delete the original MediaStore
+             * items using the existing DeleteResult flow.
+             */
+
+            val trashItems =
+                TrashStorage.getAll(
+                    requireContext()
+                ).filter { item ->
+
+                    photos.any {
+                        it.id == item.id
+                    }
+                }
+
+            pendingTrashItems =
+                trashItems
+
+            val uris =
+                photos.map {
+                    it.uri
+                }
+
+            pendingDeleteSuccessMessage =
+                "Moved to Trash"
+
+            viewModel.deleteImages(
+                requireContext(),
+                uris
+            ) { deleteResult ->
+
+                handleDeleteResult(
+                    deleteResult,
+                    "Moved to Trash"
+                )
+            }
+        }
+    }
+
+
+    private fun clearPendingTrash() {
+
+        pendingTrashItems.forEach { item ->
+
+            TrashManager.deleteTrashCopy(
+                item
+            )
+
+            TrashStorage.remove(
+                requireContext(),
+                item.id
+            )
+        }
+
+        pendingTrashItems =
+            emptyList()
     }
 
 
@@ -1532,6 +1583,8 @@ class PhotoFragment : Fragment() {
 
                 pendingDeleteRetryUris =
                     null
+
+                clearPendingTrash()
 
                 Toast.makeText(
                     requireContext(),
@@ -1592,6 +1645,8 @@ class PhotoFragment : Fragment() {
 
 
             is DeleteResult.Error -> {
+
+                clearPendingTrash()
 
                 Toast.makeText(
                     requireContext(),

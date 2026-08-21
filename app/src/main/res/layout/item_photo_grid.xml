@@ -29,19 +29,20 @@
 
 
         <FrameLayout
-
             android:id="@+id/favoriteButton"
             android:layout_width="20dp"
             android:layout_height="20dp"
             android:layout_gravity="top|start"
             android:layout_margin="6dp"
             android:background="@drawable/bg_favorite_circle"
-            android:elevation="2dp">
+            android:elevation="2dp"
+            android:visibility="gone"
+            tools:visibility="visible">
 
             <ImageView
                 android:id="@+id/imgFavorite"
                 android:layout_width="12dp"
-                android:layout_height="11dp"
+                android:layout_height="12dp"
                 android:layout_gravity="center"
                 android:src="@drawable/ic_red_heart"
                 android:contentDescription="Favorite" />
