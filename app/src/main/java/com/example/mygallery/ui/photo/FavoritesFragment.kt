@@ -1,13 +1,8 @@
 package com.example.mygallery.ui.photo
 
+import android.app.Activity
 import android.app.AlertDialog
-import android.app.WallpaperManager
-import android.content.ContentValues
-import android.content.Intent
-import android.net.Uri
-import android.os.Build
 import android.os.Bundle
-import android.provider.MediaStore
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -15,6 +10,8 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -22,12 +19,13 @@ import androidx.recyclerview.widget.GridLayoutManager
 import com.example.mygallery.R
 import com.example.mygallery.adapter.PhotosAdapter
 import com.example.mygallery.databinding.FragmentFavoritesBinding
+import com.example.mygallery.model.DeleteResult
 import com.example.mygallery.model.ImageModel
 import com.example.mygallery.model.PhotoListItem
+import com.example.mygallery.model.TrashItem
 import com.example.mygallery.repository.GalleryRepository
 import com.example.mygallery.ui.MainActivity
 import com.example.mygallery.ui.album.AlbumPickerBottomSheet
-import com.example.mygallery.ui.photo.details.PhotoDetailsBottomSheet
 import com.example.mygallery.ui.photo.menu.PhotoAction
 import com.example.mygallery.ui.photo.menu.PhotoActionPopup
 import com.example.mygallery.ui.photo.menu.PhotoMenuActions
@@ -38,10 +36,12 @@ import com.example.mygallery.ui.photo.selection.PhotoSelectionAction
 import com.example.mygallery.ui.photo.selection.PhotoSelectionActionPopup
 import com.example.mygallery.ui.photo.slideshow.SlideShowFragment
 import com.example.mygallery.ui.state.PhotosUiState
-import com.example.mygallery.utils.FavoritePreferences
+import com.example.mygallery.utils.TrashManager
+import com.example.mygallery.utils.TrashStorage
 import com.example.mygallery.viewmodel.PhotosViewModel
 import com.example.mygallery.viewmodel.PhotosViewModelFactory
 import kotlinx.coroutines.launch
+
 
 class FavoritesFragment : Fragment() {
 
@@ -70,20 +70,151 @@ class FavoritesFragment : Fragment() {
         SortOrder.DESCENDING
 
 
-    // =========================================================
+    // ---------------------------------------------------------
+    // Trash state
+    // ---------------------------------------------------------
+
+    private var pendingTrashItems:
+            List<TrashItem> = emptyList()
+
+    private var pendingDeleteRetryUris:
+            List<android.net.Uri>? = null
+
+    private var pendingDeleteSuccessMessage =
+        "Moved to Trash"
+
+
+    // ---------------------------------------------------------
+    // Rename state
+    // ---------------------------------------------------------
+
+    private var pendingRenamePhoto:
+            ImageModel? = null
+
+    private var pendingRenameName:
+            String? = null
+
+
+  
+    // RENAME PERMISSION
+  
+
+    private val renamePermissionLauncher =
+        registerForActivityResult(
+            ActivityResultContracts.StartIntentSenderForResult()
+        ) { result ->
+
+            if (
+                result.resultCode ==
+                Activity.RESULT_OK
+            ) {
+
+                val photo =
+                    pendingRenamePhoto
+
+                val newName =
+                    pendingRenameName
+
+                if (
+                    photo != null &&
+                    newName != null
+                ) {
+
+                    retryRename(
+                        photo,
+                        newName
+                    )
+                }
+
+            } else {
+
+                Toast.makeText(
+                    requireContext(),
+                    "Rename permission denied",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+
+            pendingRenamePhoto = null
+            pendingRenameName = null
+        }
+
+
+  
+    // DELETE / TRASH PERMISSION
+  
+
+    private val deleteIntentSenderLauncher =
+        registerForActivityResult(
+            ActivityResultContracts.StartIntentSenderForResult()
+        ) { result ->
+
+            if (
+                result.resultCode ==
+                Activity.RESULT_OK
+            ) {
+
+                val retryUris =
+                    pendingDeleteRetryUris
+
+                pendingDeleteRetryUris =
+                    null
+
+                if (retryUris != null) {
+
+                    viewModel.deleteImages(
+                        requireContext(),
+                        retryUris
+                    ) { deleteResult ->
+
+                        handleDeleteResult(
+                            deleteResult,
+                            pendingDeleteSuccessMessage
+                        )
+                    }
+
+                } else {
+
+                    onDeleteFinished(
+                        pendingDeleteSuccessMessage
+                    )
+                }
+
+            } else {
+
+                pendingDeleteRetryUris =
+                    null
+
+                clearPendingTrash()
+
+                Toast.makeText(
+                    requireContext(),
+                    "Delete cancelled",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+
+
+  
     // CREATE
-    // =========================================================
+  
 
     override fun onCreate(
         savedInstanceState: Bundle?
     ) {
-        super.onCreate(savedInstanceState)
+
+        super.onCreate(
+            savedInstanceState
+        )
 
         val repository =
             GalleryRepository()
 
         val factory =
-            PhotosViewModelFactory(repository)
+            PhotosViewModelFactory(
+                repository
+            )
 
         viewModel =
             ViewModelProvider(
@@ -93,9 +224,9 @@ class FavoritesFragment : Fragment() {
     }
 
 
-    // =========================================================
+  
     // CREATE VIEW
-    // =========================================================
+  
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -114,9 +245,9 @@ class FavoritesFragment : Fragment() {
     }
 
 
-    // =========================================================
+  
     // VIEW CREATED
-    // =========================================================
+  
 
     override fun onViewCreated(
         view: View,
@@ -130,7 +261,7 @@ class FavoritesFragment : Fragment() {
 
 
         // -----------------------------------------------------
-        // Android back
+        // Android Back
         // -----------------------------------------------------
 
         requireActivity()
@@ -142,7 +273,9 @@ class FavoritesFragment : Fragment() {
                     override fun handleOnBackPressed() {
 
                         if (
-                            viewModel.isSelectionMode.value == true
+                            viewModel
+                                .isSelectionMode
+                                .value == true
                         ) {
 
                             viewModel.exitSelectionMode()
@@ -174,7 +307,7 @@ class FavoritesFragment : Fragment() {
 
 
         // -----------------------------------------------------
-        // Load favorites
+        // Load Favorites
         // -----------------------------------------------------
 
         viewModel.loadFavorites(
@@ -185,9 +318,9 @@ class FavoritesFragment : Fragment() {
     }
 
 
-    // =========================================================
+  
     // RESUME
-    // =========================================================
+  
 
     override fun onResume() {
 
@@ -197,29 +330,40 @@ class FavoritesFragment : Fragment() {
             ?.showBottomNavigation()
 
 
-        if (::photosAdapter.isInitialized) {
+        if (
+            ::photosAdapter.isInitialized
+        ) {
 
             photosAdapter.setSelectionState(
-                viewModel.isSelectionMode.value == true,
-                viewModel.selectedPhotoIds.value
+                viewModel
+                    .isSelectionMode
+                    .value == true,
+
+                viewModel
+                    .selectedPhotoIds
+                    .value
                     ?: emptySet()
             )
 
             updateSelectionMode(
-                viewModel.isSelectionMode.value == true
+                viewModel
+                    .isSelectionMode
+                    .value == true
             )
 
             updateSelectionCount(
-                viewModel.selectedPhotoIds.value
+                viewModel
+                    .selectedPhotoIds
+                    .value
                     ?: emptySet()
             )
         }
     }
 
 
-    // =========================================================
+  
     // BASIC VIEWS
-    // =========================================================
+  
 
     private fun setupBasicViews() {
 
@@ -231,19 +375,10 @@ class FavoritesFragment : Fragment() {
     }
 
 
-    // =========================================================
+  
     // NORMAL MENU
-    // =========================================================
+  
 
-    /**
-     * Uses the SAME custom menu as PhotoFragment.
-     *
-     * Design:
-     *
-     *   ◉ Selected       >
-     *   ↕ Sort By        >
-     *   ▣ Slide Show     >
-     */
     private fun setupNormalMenu() {
 
         binding.btnMenu.setOnClickListener {
@@ -288,24 +423,24 @@ class FavoritesFragment : Fragment() {
                     }
 
 
-                    /*
-                     * These actions belong to PhotoFragment's
-                     * general menu but are not needed on Favorites.
-                     */
+                    // -------------------------------------------------
+                    // Not applicable to Favorites
+                    // -------------------------------------------------
+
                     PhotoAction.PIN -> {
-                        // Not applicable to Favorites
+                        // Not applicable
                     }
 
                     PhotoAction.FILTER -> {
-                        // Not applicable to Favorites
+                        // Not applicable
                     }
 
                     PhotoAction.LAYOUT_STYLE -> {
-                        // Keep Favorites in the Figma grid layout
+                        // Favorites keeps the designed grid
                     }
 
                     PhotoAction.COLUMN -> {
-                        // Keep Favorites in the Figma grid layout
+                        // Favorites keeps the designed grid
                     }
                 }
             }
@@ -313,9 +448,9 @@ class FavoritesFragment : Fragment() {
     }
 
 
-    // =========================================================
+  
     // SORT
-    // =========================================================
+  
 
     private fun showSortBottomSheet() {
 
@@ -362,25 +497,17 @@ class FavoritesFragment : Fragment() {
     }
 
 
-    // =========================================================
+  
     // SELECTION HEADER
-    // =========================================================
+  
 
     private fun setupSelectionHeader() {
-
-        // -----------------------------------------------------
-        // Close selection
-        // -----------------------------------------------------
 
         binding.btnExitSelection.setOnClickListener {
 
             viewModel.exitSelectionMode()
         }
 
-
-        // -----------------------------------------------------
-        // Selection menu
-        // -----------------------------------------------------
 
         binding.btnSelectionMenu.setOnClickListener {
 
@@ -389,9 +516,9 @@ class FavoritesFragment : Fragment() {
     }
 
 
-    // =========================================================
+  
     // ENTER SELECTION
-    // =========================================================
+  
 
     private fun enterSelectionMode() {
 
@@ -408,35 +535,37 @@ class FavoritesFragment : Fragment() {
 
 
         /*
-         * The ViewModel enters selection mode with
-         * the first photo selected.
+         * Keep the same selection behavior as PhotoFragment:
+         * entering selection mode selects the first photo.
          *
-         * The user can then tap it to deselect it.
+         * Long press on a photo still selects the exact
+         * photo that was long pressed.
          */
+
         viewModel.enterSelectionMode(
             photoList.first()
         )
     }
 
 
-    // =========================================================
+  
     // SELECTION MENU
-    // =========================================================
+  
 
-    /**
-     * Uses the SAME selection popup as PhotoFragment.
-     *
-     * The popup design is therefore identical to the
-     * normal PhotoFragment selection menu.
-     */
     private fun showSelectionMenu() {
 
         val selectedCount =
-            viewModel.selectedPhotoIds.value?.size ?: 0
+            viewModel
+                .selectedPhotoIds
+                .value
+                ?.size
+                ?: 0
+
 
         if (selectedCount == 0) {
             return
         }
+
 
         PhotoSelectionActionPopup.show(
             requireContext(),
@@ -446,9 +575,9 @@ class FavoritesFragment : Fragment() {
 
             when (action) {
 
-                // =================================================
+                // -------------------------------------------------
                 // COPY
-                // =================================================
+                // -------------------------------------------------
 
                 PhotoSelectionAction.COPY -> {
 
@@ -458,9 +587,9 @@ class FavoritesFragment : Fragment() {
                 }
 
 
-                // =================================================
+                // -------------------------------------------------
                 // MOVE
-                // =================================================
+                // -------------------------------------------------
 
                 PhotoSelectionAction.MOVE -> {
 
@@ -470,19 +599,22 @@ class FavoritesFragment : Fragment() {
                 }
 
 
-                // =================================================
+                // -------------------------------------------------
                 // RENAME
-                // =================================================
+                // -------------------------------------------------
 
                 PhotoSelectionAction.RENAME -> {
 
-                    val selected =
-                        viewModel.getSelectedPhotos()
+                    val selectedPhotos =
+                        viewModel
+                            .getSelectedPhotos()
 
-                    if (selected.size == 1) {
+                    if (
+                        selectedPhotos.size == 1
+                    ) {
 
                         showRenameDialog(
-                            selected.first()
+                            selectedPhotos.first()
                         )
 
                     } else {
@@ -496,12 +628,9 @@ class FavoritesFragment : Fragment() {
                 }
 
 
-                // =================================================
+                // -------------------------------------------------
                 // FAVORITE
-                // =================================================
-                // On Favorites screen this means:
-                // REMOVE FROM FAVORITES
-                // =================================================
+                // -------------------------------------------------
 
                 PhotoSelectionAction.FAVORITE -> {
 
@@ -509,38 +638,44 @@ class FavoritesFragment : Fragment() {
                 }
 
 
-                // =================================================
-                // SLIDE SHOW
-                // =================================================
+                // -------------------------------------------------
+                // SLIDESHOW
+                // -------------------------------------------------
 
                 PhotoSelectionAction.SLIDE_SHOW -> {
 
-                    val selected =
-                        viewModel.getSelectedPhotos()
+                    val selectedPhotos =
+                        viewModel
+                            .getSelectedPhotos()
 
-                    if (selected.isNotEmpty()) {
+                    if (
+                        selectedPhotos.isNotEmpty()
+                    ) {
 
                         startSlideShow(
-                            selected,
+                            selectedPhotos,
                             0
                         )
                     }
                 }
 
 
-                // =================================================
+                // -------------------------------------------------
                 // EDIT WITH
-                // =================================================
+                // -------------------------------------------------
 
                 PhotoSelectionAction.EDIT_WITH -> {
 
-                    val selected =
-                        viewModel.getSelectedPhotos()
+                    val selectedPhotos =
+                        viewModel
+                            .getSelectedPhotos()
 
-                    if (selected.size == 1) {
+                    if (
+                        selectedPhotos.size == 1
+                    ) {
 
                         openPhotoForEdit(
-                            selected.first()
+                            selectedPhotos.first()
                         )
 
                     } else {
@@ -554,19 +689,22 @@ class FavoritesFragment : Fragment() {
                 }
 
 
-                // =================================================
-                // SET AS WALLPAPER
-                // =================================================
+                // -------------------------------------------------
+                // WALLPAPER
+                // -------------------------------------------------
 
                 PhotoSelectionAction.SET_AS_WALLPAPER -> {
 
-                    val selected =
-                        viewModel.getSelectedPhotos()
+                    val selectedPhotos =
+                        viewModel
+                            .getSelectedPhotos()
 
-                    if (selected.size == 1) {
+                    if (
+                        selectedPhotos.size == 1
+                    ) {
 
                         showWallpaperDialog(
-                            selected.first()
+                            selectedPhotos.first()
                         )
 
                     } else {
@@ -580,9 +718,9 @@ class FavoritesFragment : Fragment() {
                 }
 
 
-                // =================================================
+                // -------------------------------------------------
                 // SHARE
-                // =================================================
+                // -------------------------------------------------
 
                 PhotoSelectionAction.SHARE -> {
 
@@ -590,11 +728,9 @@ class FavoritesFragment : Fragment() {
                 }
 
 
-                // =================================================
+                // -------------------------------------------------
                 // DELETE
-                // =================================================
-                // Favorites → Custom Trash
-                // =================================================
+                // -------------------------------------------------
 
                 PhotoSelectionAction.DELETE -> {
 
@@ -602,9 +738,9 @@ class FavoritesFragment : Fragment() {
                 }
 
 
-                // =================================================
+                // -------------------------------------------------
                 // DETAILS
-                // =================================================
+                // -------------------------------------------------
 
                 PhotoSelectionAction.DETAILS -> {
 
@@ -612,19 +748,22 @@ class FavoritesFragment : Fragment() {
                 }
 
 
-                // =================================================
+                // -------------------------------------------------
                 // OPEN WITH
-                // =================================================
+                // -------------------------------------------------
 
                 PhotoSelectionAction.OPEN_WITH -> {
 
-                    val selected =
-                        viewModel.getSelectedPhotos()
+                    val selectedPhotos =
+                        viewModel
+                            .getSelectedPhotos()
 
-                    if (selected.size == 1) {
+                    if (
+                        selectedPhotos.size == 1
+                    ) {
 
                         openPhotoWith(
-                            selected.first()
+                            selectedPhotos.first()
                         )
 
                     } else {
@@ -641,290 +780,18 @@ class FavoritesFragment : Fragment() {
     }
 
 
-    private fun openPhotoWith(
-        photo: ImageModel
-    ) {
-
-        val mimeType =
-            requireContext()
-                .contentResolver
-                .getType(photo.uri)
-                ?: photo.mimeType
-                    .ifBlank { "image/*" }
-
-        val intent =
-            Intent(
-                Intent.ACTION_VIEW
-            ).apply {
-
-                setDataAndType(
-                    photo.uri,
-                    mimeType
-                )
-
-                addFlags(
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION
-                )
-            }
-
-        try {
-
-            startActivity(intent)
-
-        } catch (e: Exception) {
-
-            Toast.makeText(
-                requireContext(),
-                "No app can open this photo",
-                Toast.LENGTH_SHORT
-            ).show()
-        }
-    }
-
-
-
-    private fun renamePhoto(
-        photo: ImageModel,
-        newName: String
-    ) {
-
-        try {
-
-            val extension =
-                photo.name.substringAfterLast(
-                    ".",
-                    ""
-                )
-
-            val finalName =
-                if (
-                    extension.isNotEmpty() &&
-                    !newName.contains(".")
-                ) {
-
-                    "$newName.$extension"
-
-                } else {
-
-                    newName
-                }
-
-            val values =
-                ContentValues().apply {
-
-                    put(
-                        MediaStore.MediaColumns.DISPLAY_NAME,
-                        finalName
-                    )
-                }
-
-            val updated =
-                requireContext()
-                    .contentResolver
-                    .update(
-                        photo.uri,
-                        values,
-                        null,
-                        null
-                    )
-
-            if (updated > 0) {
-
-                // Update local list
-                val index =
-                    photoList.indexOfFirst {
-                        it.id == photo.id
-                    }
-
-                if (index != -1) {
-
-                    photoList[index] =
-                        photoList[index].copy(
-                            name = finalName
-                        )
-                }
-
-                Toast.makeText(
-                    requireContext(),
-                    "Renamed successfully",
-                    Toast.LENGTH_SHORT
-                ).show()
-
-                viewModel.exitSelectionMode()
-
-                viewModel.loadFavorites(
-                    requireContext(),
-                    currentSortType,
-                    currentSortOrder
-                )
-
-            } else {
-
-                Toast.makeText(
-                    requireContext(),
-                    "Rename failed",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-
-        } catch (e: Exception) {
-
-            Toast.makeText(
-                requireContext(),
-                "Rename failed: ${e.message}",
-                Toast.LENGTH_SHORT
-            ).show()
-        }
-    }
-
-
-    private fun openPhotoForEdit(
-        photo: ImageModel
-    ) {
-
-        val mimeType =
-            requireContext()
-                .contentResolver
-                .getType(photo.uri)
-                ?: "image/*"
-
-        val intent =
-            Intent(
-                Intent.ACTION_EDIT
-            ).apply {
-
-                setDataAndType(
-                    photo.uri,
-                    mimeType
-                )
-
-                addFlags(
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION
-                )
-            }
-
-        try {
-
-            startActivity(intent)
-
-        } catch (e: Exception) {
-
-            Toast.makeText(
-                requireContext(),
-                "No editing app found",
-                Toast.LENGTH_SHORT
-            ).show()
-        }
-    }
-
-
-
-    private fun showWallpaperDialog(
-        photo: ImageModel
-    ) {
-
-        val options =
-            arrayOf(
-                "Home screen",
-                "Lock screen",
-                "Home & Lock screen"
-            )
-
-        AlertDialog.Builder(
-            requireContext()
-        )
-            .setTitle(
-                "Set as wallpaper"
-            )
-            .setItems(options) { _, which ->
-
-                when (which) {
-
-                    0 -> setWallpaper(
-                        photo,
-                        WallpaperManager.FLAG_SYSTEM
-                    )
-
-                    1 -> setWallpaper(
-                        photo,
-                        WallpaperManager.FLAG_LOCK
-                    )
-
-                    2 -> setWallpaper(
-                        photo,
-                        WallpaperManager.FLAG_SYSTEM or
-                                WallpaperManager.FLAG_LOCK
-                    )
-                }
-            }
-            .setNegativeButton(
-                "Cancel",
-                null
-            )
-            .show()
-    }
-
-
-    private fun setWallpaper(
-        photo: ImageModel,
-        flags: Int
-    ) {
-
-        try {
-
-            val wallpaperManager =
-                WallpaperManager.getInstance(
-                    requireContext()
-                )
-
-            requireContext()
-                .contentResolver
-                .openInputStream(
-                    photo.uri
-                )
-                ?.use { inputStream ->
-
-                    if (
-                        Build.VERSION.SDK_INT >=
-                        Build.VERSION_CODES.N
-                    ) {
-
-                        wallpaperManager.setStream(
-                            inputStream,
-                            null,
-                            true,
-                            flags
-                        )
-
-                    } else {
-
-                        wallpaperManager.setStream(
-                            inputStream
-                        )
-                    }
-                }
-
-            Toast.makeText(
-                requireContext(),
-                "Wallpaper set successfully",
-                Toast.LENGTH_SHORT
-            ).show()
-
-        } catch (e: Exception) {
-
-            Toast.makeText(
-                requireContext(),
-                "Failed to set wallpaper: ${e.message}",
-                Toast.LENGTH_LONG
-            ).show()
-        }
-    }
-
+  
+    // DETAILS
+  
 
     private fun showSelectedDetails() {
 
         val selectedPhotos =
             viewModel.getSelectedPhotos()
+
+        if (selectedPhotos.isEmpty()) {
+            return
+        }
 
         PhotoMenuActions.showDetails(
             this,
@@ -933,12 +800,18 @@ class FavoritesFragment : Fragment() {
     }
 
 
+  
+    // RENAME
+  
+
     private fun showRenameDialog(
         photo: ImageModel
     ) {
 
         val editText =
-            EditText(requireContext()).apply {
+            EditText(
+                requireContext()
+            ).apply {
 
                 setSingleLine(true)
 
@@ -951,6 +824,7 @@ class FavoritesFragment : Fragment() {
 
                 selectAll()
             }
+
 
         val container =
             LinearLayout(
@@ -967,15 +841,25 @@ class FavoritesFragment : Fragment() {
                     0
                 )
 
-                addView(editText)
+                addView(
+                    editText
+                )
             }
+
 
         val dialog =
             AlertDialog.Builder(
                 requireContext()
             )
-                .setTitle("Rename")
-                .setView(container)
+                .setTitle(
+                    "Rename"
+                )
+                .setMessage(
+                    "Enter a name for this photo."
+                )
+                .setView(
+                    container
+                )
                 .setNegativeButton(
                     "Cancel",
                     null
@@ -985,6 +869,7 @@ class FavoritesFragment : Fragment() {
                     null
                 )
                 .create()
+
 
         dialog.setOnShowListener {
 
@@ -997,7 +882,10 @@ class FavoritesFragment : Fragment() {
                         .toString()
                         .trim()
 
-                if (newName.isEmpty()) {
+
+                if (
+                    newName.isEmpty()
+                ) {
 
                     editText.error =
                         "Name cannot be empty"
@@ -1005,54 +893,319 @@ class FavoritesFragment : Fragment() {
                     return@setOnClickListener
                 }
 
-                renamePhoto(
-                    photo,
-                    newName,
-                )
+
+                when (
+                    val result =
+                        PhotoMenuActions.rename(
+                            requireContext(),
+                            photo,
+                            newName
+                        )
+                ) {
+
+                    is PhotoMenuActions
+                    .RenameResult.Success -> {
+
+                        Toast.makeText(
+                            requireContext(),
+                            "Renamed successfully",
+                            Toast.LENGTH_SHORT
+                        ).show()
+
+                        viewModel.exitSelectionMode()
+
+                        viewModel.loadFavorites(
+                            requireContext(),
+                            currentSortType,
+                            currentSortOrder
+                        )
+                    }
+
+
+                    is PhotoMenuActions
+                    .RenameResult.Error -> {
+
+                        Toast.makeText(
+                            requireContext(),
+                            result.message,
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+
+
+                    is PhotoMenuActions
+                    .RenameResult.NeedsPermission -> {
+
+                        pendingRenamePhoto =
+                            photo
+
+                        pendingRenameName =
+                            newName
+
+
+                        val request =
+                            IntentSenderRequest.Builder(
+                                result.intentSender
+                            ).build()
+
+
+                        renamePermissionLauncher
+                            .launch(
+                                request
+                            )
+                    }
+                }
+
+
+                /*
+                 * Don't dismiss if permission is required.
+                 * The permission dialog is launched from here.
+                 */
+
+                if (
+                    PhotoMenuActions.rename(
+                        requireContext(),
+                        photo,
+                        newName
+                    ) !is PhotoMenuActions
+                    .RenameResult.NeedsPermission
+                ) {
+
+                    dialog.dismiss()
+                }
             }
         }
+
 
         dialog.show()
     }
 
 
-
-
-
-    private fun performPhotoCopy(
-        photos: List<ImageModel>,
-        destinationAlbumName: String
+    private fun retryRename(
+        photo: ImageModel,
+        newName: String
     ) {
 
-        val uris =
-            photos.map {
-                it.uri
+        when (
+            val result =
+                PhotoMenuActions.rename(
+                    requireContext(),
+                    photo,
+                    newName
+                )
+        ) {
+
+            is PhotoMenuActions
+            .RenameResult.Success -> {
+
+                Toast.makeText(
+                    requireContext(),
+                    "Renamed successfully",
+                    Toast.LENGTH_SHORT
+                ).show()
+
+                viewModel.exitSelectionMode()
+
+                viewModel.loadFavorites(
+                    requireContext(),
+                    currentSortType,
+                    currentSortOrder
+                )
             }
 
-        if (uris.isEmpty()) {
+
+            is PhotoMenuActions
+            .RenameResult.Error -> {
+
+                Toast.makeText(
+                    requireContext(),
+                    result.message,
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+
+
+            is PhotoMenuActions
+            .RenameResult.NeedsPermission -> {
+
+                val request =
+                    IntentSenderRequest.Builder(
+                        result.intentSender
+                    ).build()
+
+                renamePermissionLauncher
+                    .launch(
+                        request
+                    )
+            }
+        }
+    }
+
+
+  
+    // OPEN WITH
+  
+
+    private fun openPhotoWith(
+        photo: ImageModel
+    ) {
+
+        PhotoMenuActions.openWith(
+            requireContext(),
+            photo
+        )
+    }
+
+
+  
+    // EDIT WITH
+  
+
+    private fun openPhotoForEdit(
+        photo: ImageModel
+    ) {
+
+        PhotoMenuActions.editWith(
+            requireContext(),
+            photo
+        )
+    }
+
+
+  
+    // WALLPAPER
+  
+
+    private fun showWallpaperDialog(
+        photo: ImageModel
+    ) {
+
+        PhotoMenuActions.showWallpaperDialog(
+            this,
+            photo
+        )
+    }
+
+
+  
+    // COPY / MOVE ALBUM PICKER
+  
+
+    private fun showPhotoAlbumPicker(
+        mode: AlbumPickerBottomSheet.Mode
+    ) {
+
+        /*
+         * Get the selection once.
+         * The selected list is then passed through the
+         * rest of the operation.
+         */
+
+        val selectedPhotos =
+            viewModel.getSelectedPhotos()
+
+
+        if (
+            selectedPhotos.isEmpty()
+        ) {
 
             Toast.makeText(
                 requireContext(),
-                "No photos to copy",
+                "No photos selected",
                 Toast.LENGTH_SHORT
             ).show()
 
             return
         }
 
+
+        val excludedNames =
+            selectedPhotos
+                .map {
+                    it.folderName
+                }
+                .distinct()
+
+
+        val sheet =
+            AlbumPickerBottomSheet.newInstance(
+                mode,
+                excludedNames
+            )
+
+
+        sheet.onAlbumSelected =
+            { destinationAlbumName ->
+
+                if (
+                    mode ==
+                    AlbumPickerBottomSheet.Mode.COPY
+                ) {
+
+                    performPhotoCopy(
+                        selectedPhotos,
+                        destinationAlbumName
+                    )
+
+                } else {
+
+                    performPhotoMove(
+                        selectedPhotos,
+                        destinationAlbumName
+                    )
+                }
+            }
+
+
+        sheet.show(
+            childFragmentManager,
+            "FavoriteAlbumPicker"
+        )
+    }
+
+
+  
+    // COPY
+  
+
+    private fun performPhotoCopy(
+        photos: List<ImageModel>,
+        destinationAlbumName: String
+    ) {
+
+        /*
+         * Do NOT call getSelectedPhotos() again.
+         *
+         * The selected list was already captured when
+         * the album picker was opened.
+         */
+
+        if (
+            photos.isEmpty()
+        ) {
+            return
+        }
+
+
         viewLifecycleOwner.lifecycleScope.launch {
 
             val result =
-                viewModel.repository.copyImages(
+                PhotoSelectionActions.copy(
                     requireContext(),
-                    uris,
+                    viewModel.repository,
+                    photos,
                     destinationAlbumName
                 )
 
-            if (result.isSuccess) {
+
+            if (
+                result.isSuccess
+            ) {
 
                 val copiedCount =
-                    result.getOrNull() ?: 0
+                    result.getOrNull()
+                        ?: 0
+
 
                 Toast.makeText(
                     requireContext(),
@@ -1060,11 +1213,15 @@ class FavoritesFragment : Fragment() {
                     Toast.LENGTH_SHORT
                 ).show()
 
+
                 viewModel.exitSelectionMode()
 
-                // IMPORTANT:
-                // Favorites must reload favorites,
-                // not normal photos.
+
+                /*
+                 * Favorites must reload Favorites,
+                 * not Photos.
+                 */
+
                 viewModel.loadFavorites(
                     requireContext(),
                     currentSortType,
@@ -1076,97 +1233,64 @@ class FavoritesFragment : Fragment() {
                 Toast.makeText(
                     requireContext(),
                     "Copy failed: ${
-                        result.exceptionOrNull()?.message
+                        result
+                            .exceptionOrNull()
+                            ?.message
                     }",
-                    Toast.LENGTH_LONG
+                    Toast.LENGTH_SHORT
                 ).show()
             }
         }
     }
-    private fun showPhotoAlbumPicker(
-        mode: AlbumPickerBottomSheet.Mode
-    ) {
 
-        val selected =
-            viewModel.getSelectedPhotos()
 
-        if (selected.isEmpty()) {
-
-            Toast.makeText(
-                requireContext(),
-                "No photos selected",
-                Toast.LENGTH_SHORT
-            ).show()
-
-            return
-        }
-
-        val excludedNames =
-            selected
-                .map { it.folderName }
-                .distinct()
-
-        val sheet =
-            AlbumPickerBottomSheet.newInstance(
-                mode,
-                excludedNames
-            )
-
-        sheet.onAlbumSelected =
-            { destinationAlbumName ->
-
-                if (
-                    mode ==
-                    AlbumPickerBottomSheet.Mode.COPY
-                ) {
-
-                    performPhotoCopy(
-                        selected,
-                        destinationAlbumName
-                    )
-
-                } else {
-
-                    performPhotoMove(
-                        selected,
-                        destinationAlbumName
-                    )
-                }
-            }
-
-        sheet.show(
-            childFragmentManager,
-            "FavoriteAlbumPicker"
-        )
-    }
+  
+    // MOVE
+  
 
     private fun performPhotoMove(
         photos: List<ImageModel>,
         destinationAlbumName: String
     ) {
 
-        val uris =
-            photos.map { it.uri }
-
-        if (uris.isEmpty()) {
+        if (
+            photos.isEmpty()
+        ) {
             return
         }
 
+
+        val uris =
+            photos.map {
+                it.uri
+            }
+
+
         viewLifecycleOwner.lifecycleScope.launch {
 
+            /*
+             * First copy the photos to the destination.
+             */
+
             val copyResult =
-                viewModel.repository.copyImages(
+                PhotoSelectionActions.move(
                     requireContext(),
-                    uris,
+                    viewModel.repository,
+                    photos,
                     destinationAlbumName
                 )
 
-            if (!copyResult.isSuccess) {
+
+            if (
+                !copyResult.isSuccess
+            ) {
 
                 Toast.makeText(
                     requireContext(),
                     "Move failed: ${
-                        copyResult.exceptionOrNull()?.message
+                        copyResult
+                            .exceptionOrNull()
+                            ?.message
                     }",
                     Toast.LENGTH_LONG
                 ).show()
@@ -1174,54 +1298,51 @@ class FavoritesFragment : Fragment() {
                 return@launch
             }
 
+
+            /*
+             * Only delete the originals after the copy
+             * succeeds.
+             */
+
             viewModel.deleteImages(
                 requireContext(),
                 uris
             ) { deleteResult ->
 
-                if (deleteResult is com.example.mygallery.model.DeleteResult.Success) {
-
-                    Toast.makeText(
-                        requireContext(),
-                        "Moved to $destinationAlbumName",
-                        Toast.LENGTH_SHORT
-                    ).show()
-
-                    viewModel.exitSelectionMode()
-
-                    viewModel.loadFavorites(
-                        requireContext(),
-                        currentSortType,
-                        currentSortOrder
-                    )
-
-                } else {
-
-                    Toast.makeText(
-                        requireContext(),
-                        "Move completed partially. Check your photos.",
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
+                handleDeleteResult(
+                    deleteResult,
+                    "Moved to $destinationAlbumName"
+                )
             }
         }
     }
 
-    // =========================================================
-    // UNFAVORITE
-    // =========================================================
+
+  
+    // REMOVE FROM FAVORITES
+  
 
     private fun removeSelectedFromFavorites() {
 
         val selectedPhotos =
             viewModel.getSelectedPhotos()
 
+
+        if (
+            selectedPhotos.isEmpty()
+        ) {
+            return
+        }
+
+
         PhotoSelectionActions.removeFromFavorites(
             requireContext(),
             selectedPhotos
         )
 
+
         viewModel.exitSelectionMode()
+
 
         viewModel.loadFavorites(
             requireContext(),
@@ -1231,101 +1352,50 @@ class FavoritesFragment : Fragment() {
     }
 
 
-    // =========================================================
+  
     // SHARE
-    // =========================================================
+  
 
     private fun shareSelectedPhotos() {
 
+        val selectedPhotos =
+            viewModel.getSelectedPhotos()
+
+
+        if (
+            selectedPhotos.isEmpty()
+        ) {
+            return
+        }
+
+
         PhotoSelectionActions.share(
             requireContext(),
-            viewModel.getSelectedPhotos()
+            selectedPhotos
         )
     }
 
 
-    // =========================================================
-    // OPEN WITH
-    // =========================================================
-
-    private fun openSelectedPhoto() {
-
-        val selected =
-            viewModel.getSelectedPhotos()
-
-
-        if (selected.isEmpty()) {
-            return
-        }
-
-
-        val photo =
-            selected.first()
-
-
-        val mimeType =
-            requireContext()
-                .contentResolver
-                .getType(
-                    photo.uri
-                )
-                ?: "image/*"
-
-
-        val intent =
-            Intent(
-                Intent.ACTION_VIEW
-            ).apply {
-
-                setDataAndType(
-                    photo.uri,
-                    mimeType
-                )
-
-                addFlags(
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION
-                )
-            }
-
-
-        try {
-
-            startActivity(intent)
-
-        } catch (
-            e: Exception
-        ) {
-
-            Toast.makeText(
-                requireContext(),
-                "No app can open this file",
-                Toast.LENGTH_SHORT
-            ).show()
-        }
-    }
-
-
-    // =========================================================
+  
     // DELETE → CUSTOM TRASH
-    // =========================================================
+  
 
-    /**
-     * Favorites uses the same custom Trash system as Photos.
-     *
-     * This is important for your Android 10 phone because
-     * MediaStore.IS_TRASHED is not available there.
-     */
     private fun confirmAndMoveToTrash() {
 
-        val selected =
+        val selectedPhotos =
             viewModel.getSelectedPhotos()
 
-        if (selected.isEmpty()) {
+
+        if (
+            selectedPhotos.isEmpty()
+        ) {
             return
         }
 
+
         val count =
-            selected.size
+            selectedPhotos.size
+
 
         AlertDialog.Builder(
             requireContext()
@@ -1334,7 +1404,9 @@ class FavoritesFragment : Fragment() {
                 "Move to Trash?"
             )
             .setMessage(
-                "$count photo${if (count > 1) "s" else ""} will be moved to Trash."
+                "$count photo${
+                    if (count > 1) "s" else ""
+                } will be moved to Trash."
             )
             .setNegativeButton(
                 "Cancel",
@@ -1344,56 +1416,233 @@ class FavoritesFragment : Fragment() {
                 "Move to Trash"
             ) { _, _ ->
 
-                viewModel.moveImagesToTrash(
-                    requireContext(),
-                    selected
-                ) { result ->
-
-                    if (result.isSuccess) {
-
-                        val moved =
-                            result.getOrNull() ?: 0
-
-                        Toast.makeText(
-                            requireContext(),
-                            "$moved photo${if (moved != 1) "s" else ""} moved to Trash",
-                            Toast.LENGTH_SHORT
-                        ).show()
-
-                        viewModel.exitSelectionMode()
-
-                        viewModel.loadFavorites(
-                            requireContext(),
-                            currentSortType,
-                            currentSortOrder
-                        )
-
-                    } else {
-
-                        Toast.makeText(
-                            requireContext(),
-                            "Unable to move to Trash: ${
-                                result.exceptionOrNull()?.message
-                            }",
-                            Toast.LENGTH_LONG
-                        ).show()
-                    }
-                }
+                moveSelectedPhotosToTrash(
+                    selectedPhotos
+                )
             }
             .show()
     }
 
 
-    // =========================================================
+    private fun moveSelectedPhotosToTrash(
+        photos: List<ImageModel>
+    ) {
+
+        viewModel.moveImagesToTrash(
+            requireContext(),
+            photos
+        ) { result ->
+
+            if (
+                result.isFailure
+            ) {
+
+                Toast.makeText(
+                    requireContext(),
+                    "Unable to move to Trash: ${
+                        result
+                            .exceptionOrNull()
+                            ?.message
+                    }",
+                    Toast.LENGTH_LONG
+                ).show()
+
+                return@moveImagesToTrash
+            }
+
+
+            /*
+             * Trash copy has been created.
+             *
+             * Now delete the original MediaStore items.
+             */
+
+            pendingTrashItems =
+                TrashStorage
+                    .getAll(
+                        requireContext()
+                    )
+                    .filter { item ->
+
+                        photos.any {
+                            it.id == item.id
+                        }
+                    }
+
+
+            val uris =
+                photos.map {
+                    it.uri
+                }
+
+
+            pendingDeleteSuccessMessage =
+                "Moved to Trash"
+
+
+            viewModel.deleteImages(
+                requireContext(),
+                uris
+            ) { deleteResult ->
+
+                handleDeleteResult(
+                    deleteResult,
+                    "Moved to Trash"
+                )
+            }
+        }
+    }
+
+
+  
+    // DELETE RESULT
+  
+
+    private fun handleDeleteResult(
+        result: DeleteResult,
+        successMessage: String
+    ) {
+
+        when (result) {
+
+            // -------------------------------------------------
+            // SUCCESS
+            // -------------------------------------------------
+
+            is DeleteResult.Success -> {
+
+                onDeleteFinished(
+                    successMessage
+                )
+            }
+
+
+            // -------------------------------------------------
+            // ANDROID 11+
+            // -------------------------------------------------
+
+            is DeleteResult.ConfirmDelete -> {
+
+                pendingDeleteRetryUris =
+                    null
+
+                pendingDeleteSuccessMessage =
+                    successMessage
+
+
+                deleteIntentSenderLauncher
+                    .launch(
+                        IntentSenderRequest.Builder(
+                            result.intentSender
+                        ).build()
+                    )
+            }
+
+
+            // -------------------------------------------------
+            // ANDROID 10
+            // -------------------------------------------------
+
+            is DeleteResult
+            .GrantPermissionThenRetry -> {
+
+                pendingDeleteRetryUris =
+                    result.remainingUris
+
+                pendingDeleteSuccessMessage =
+                    successMessage
+
+
+                deleteIntentSenderLauncher
+                    .launch(
+                        IntentSenderRequest.Builder(
+                            result.intentSender
+                        ).build()
+                    )
+            }
+
+
+            // -------------------------------------------------
+            // ERROR
+            // -------------------------------------------------
+
+            is DeleteResult.Error -> {
+
+                clearPendingTrash()
+
+
+                Toast.makeText(
+                    requireContext(),
+                    "Delete failed: ${result.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+
+
+    private fun onDeleteFinished(
+        successMessage: String
+    ) {
+
+        /*
+         * If this was a Trash operation, the custom Trash
+         * metadata/copy should remain.
+         *
+         * Only the original MediaStore item is deleted.
+         */
+
+
+        Toast.makeText(
+            requireContext(),
+            successMessage,
+            Toast.LENGTH_SHORT
+        ).show()
+
+
+        viewModel.exitSelectionMode()
+
+
+        viewModel.loadFavorites(
+            requireContext(),
+            currentSortType,
+            currentSortOrder
+        )
+    }
+
+
+    private fun clearPendingTrash() {
+
+        pendingTrashItems.forEach { item ->
+
+            TrashManager.deleteTrashCopy(
+                item
+            )
+
+            TrashStorage.remove(
+                requireContext(),
+                item.id
+            )
+        }
+
+
+        pendingTrashItems =
+            emptyList()
+    }
+
+
+  
     // SLIDESHOW
-    // =========================================================
+  
 
     private fun startSlideShow(
         images: List<ImageModel>,
         position: Int
     ) {
 
-        if (images.isEmpty()) {
+        if (
+            images.isEmpty()
+        ) {
 
             Toast.makeText(
                 requireContext(),
@@ -1425,26 +1674,28 @@ class FavoritesFragment : Fragment() {
     }
 
 
-    // =========================================================
+  
     // OBSERVERS
-    // =========================================================
+  
 
     private fun setupObservers() {
 
         // -----------------------------------------------------
-        // UI State
+        // UI state
         // -----------------------------------------------------
 
         viewModel.uiState.observe(
             viewLifecycleOwner
         ) { state ->
 
-            renderState(state)
+            renderState(
+                state
+            )
         }
 
 
         // -----------------------------------------------------
-        // Selection Mode
+        // Selection mode
         // -----------------------------------------------------
 
         viewModel.isSelectionMode.observe(
@@ -1462,7 +1713,9 @@ class FavoritesFragment : Fragment() {
 
                 photosAdapter.setSelectionState(
                     isSelecting,
-                    viewModel.selectedPhotoIds.value
+                    viewModel
+                        .selectedPhotoIds
+                        .value
                         ?: emptySet()
                 )
             }
@@ -1487,7 +1740,9 @@ class FavoritesFragment : Fragment() {
             ) {
 
                 photosAdapter.setSelectionState(
-                    viewModel.isSelectionMode.value == true,
+                    viewModel
+                        .isSelectionMode
+                        .value == true,
                     selectedIds
                 )
             }
@@ -1495,9 +1750,9 @@ class FavoritesFragment : Fragment() {
     }
 
 
-    // =========================================================
+  
     // RENDER STATE
-    // =========================================================
+  
 
     private fun renderState(
         state: PhotosUiState
@@ -1544,7 +1799,9 @@ class FavoritesFragment : Fragment() {
 
 
                 updateSelectionCount(
-                    viewModel.selectedPhotoIds.value
+                    viewModel
+                        .selectedPhotoIds
+                        .value
                         ?: emptySet()
                 )
             }
@@ -1560,11 +1817,10 @@ class FavoritesFragment : Fragment() {
                     View.VISIBLE
 
 
-                // ---------------------------------------------
-                // Extract actual photos.
-                //
-                // DateHeader items are ignored.
-                // ---------------------------------------------
+                /*
+                 * Extract only actual photos.
+                 * Date headers are ignored.
+                 */
 
                 photoList.clear()
 
@@ -1582,27 +1838,22 @@ class FavoritesFragment : Fragment() {
                 }
 
 
-                // ---------------------------------------------
-                // Subtitle
-                // ---------------------------------------------
-
                 binding.tvSubtitle.text =
                     "${photoList.size} Photos"
 
 
-                // ---------------------------------------------
+                // -------------------------------------------------
                 // Adapter
-                // ---------------------------------------------
+                // -------------------------------------------------
 
                 photosAdapter =
                     PhotosAdapter(
                         isGridView = true,
                         items = state.items,
 
-
-                        // -------------------------------------
-                        // PHOTO CLICK
-                        // -------------------------------------
+                        // -----------------------------------------
+                        // Normal photo click
+                        // -----------------------------------------
 
                         onPhotoClick = {
                                 photo,
@@ -1612,6 +1863,7 @@ class FavoritesFragment : Fragment() {
                                 photoList.indexOf(
                                     photo.image
                                 )
+
 
                             if (
                                 photoPosition < 0
@@ -1654,49 +1906,52 @@ class FavoritesFragment : Fragment() {
                         },
 
 
-                        // -------------------------------------
-                        // LONG PRESS
-                        // -------------------------------------
+                        // -----------------------------------------
+                        // Long press
+                        // -----------------------------------------
 
                         onPhotoLongClick = {
                                 photo ->
 
-                            viewModel
-                                .enterSelectionMode(
-                                    photo.image
-                                )
+                            viewModel.enterSelectionMode(
+                                photo.image
+                            )
                         },
 
 
-                        // -------------------------------------
-                        // TAP WHILE SELECTING
-                        // -------------------------------------
+                        // -----------------------------------------
+                        // Tap while selecting
+                        // -----------------------------------------
 
                         onPhotoToggleSelect = {
                                 photo ->
 
-                            viewModel
-                                .toggleSelection(
-                                    photo.image
-                                )
+                            viewModel.toggleSelection(
+                                photo.image
+                            )
                         }
                     )
 
 
-                // ---------------------------------------------
+                // -------------------------------------------------
                 // Restore selection
-                // ---------------------------------------------
+                // -------------------------------------------------
 
                 photosAdapter.setSelectionState(
-                    viewModel.isSelectionMode.value == true,
-                    viewModel.selectedPhotoIds.value
+                    viewModel
+                        .isSelectionMode
+                        .value == true,
+
+                    viewModel
+                        .selectedPhotoIds
+                        .value
                         ?: emptySet()
                 )
 
 
-                // ---------------------------------------------
+                // -------------------------------------------------
                 // RecyclerView
-                // ---------------------------------------------
+                // -------------------------------------------------
 
                 binding.recyclerFavorites.adapter =
                     photosAdapter
@@ -1706,27 +1961,31 @@ class FavoritesFragment : Fragment() {
                     buildGridLayoutManager()
 
 
-                // ---------------------------------------------
+                // -------------------------------------------------
                 // Header
-                // ---------------------------------------------
+                // -------------------------------------------------
 
                 updateSelectionCount(
-                    viewModel.selectedPhotoIds.value
+                    viewModel
+                        .selectedPhotoIds
+                        .value
                         ?: emptySet()
                 )
 
 
                 updateSelectionMode(
-                    viewModel.isSelectionMode.value == true
+                    viewModel
+                        .isSelectionMode
+                        .value == true
                 )
             }
         }
     }
 
 
-    // =========================================================
+  
     // SELECTION UI
-    // =========================================================
+  
 
     private fun updateSelectionMode(
         isSelecting: Boolean
@@ -1776,9 +2035,9 @@ class FavoritesFragment : Fragment() {
     }
 
 
-    // =========================================================
+  
     // GRID
-    // =========================================================
+  
 
     private fun buildGridLayoutManager():
             GridLayoutManager {
@@ -1819,9 +2078,9 @@ class FavoritesFragment : Fragment() {
     }
 
 
-    // =========================================================
+  
     // DESTROY
-    // =========================================================
+
 
     override fun onDestroyView() {
 

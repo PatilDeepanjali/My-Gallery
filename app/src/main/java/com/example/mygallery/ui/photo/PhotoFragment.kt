@@ -2,14 +2,16 @@ package com.example.mygallery.ui.photo
 
 import android.app.Activity
 import android.app.AlertDialog
-import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.Toast
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.OnBackPressedCallback
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
@@ -21,38 +23,28 @@ import com.example.mygallery.databinding.FragmentPhotoBinding
 import com.example.mygallery.model.DeleteResult
 import com.example.mygallery.model.ImageModel
 import com.example.mygallery.model.PhotoListItem
+import com.example.mygallery.model.TrashItem
 import com.example.mygallery.repository.GalleryRepository
 import com.example.mygallery.ui.MainActivity
 import com.example.mygallery.ui.album.AlbumPickerBottomSheet
-import com.example.mygallery.ui.photo.details.PhotoDetailsBottomSheet
 import com.example.mygallery.ui.photo.menu.ColumnBottomSheet
 import com.example.mygallery.ui.photo.menu.LayoutStyleBottomSheet
 import com.example.mygallery.ui.photo.menu.PhotoAction
 import com.example.mygallery.ui.photo.menu.PhotoActionPopup
+import com.example.mygallery.ui.photo.menu.PhotoMenuActions
+import com.example.mygallery.ui.photo.menu.PhotoSelectionActions
 import com.example.mygallery.ui.photo.menu.SortOrder
 import com.example.mygallery.ui.photo.menu.SortType
 import com.example.mygallery.ui.photo.selection.PhotoSelectionAction
 import com.example.mygallery.ui.photo.selection.PhotoSelectionActionPopup
 import com.example.mygallery.ui.photo.slideshow.SlideShowFragment
 import com.example.mygallery.ui.state.PhotosUiState
+import com.example.mygallery.utils.TrashManager
+import com.example.mygallery.utils.TrashStorage
 import com.example.mygallery.viewmodel.PhotosViewModel
 import com.example.mygallery.viewmodel.PhotosViewModelFactory
 import kotlinx.coroutines.launch
-import android.app.WallpaperManager
-import android.content.ContentValues
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.os.Build
-import android.provider.MediaStore
-import android.widget.EditText
-import android.widget.LinearLayout
-import androidx.activity.OnBackPressedCallback
-import com.example.mygallery.model.TrashItem
-import com.example.mygallery.ui.photo.menu.PhotoMenuActions
-import com.example.mygallery.ui.photo.menu.PhotoSelectionActions
-import com.example.mygallery.utils.FavoritePreferences
-import com.example.mygallery.utils.TrashManager
-import com.example.mygallery.utils.TrashStorage
+
 
 class PhotoFragment : Fragment() {
 
@@ -60,44 +52,99 @@ class PhotoFragment : Fragment() {
         const val ARG_FOLDER_NAME = "arg_folder_name"
     }
 
-    private var photoList = ArrayList<ImageModel>()
+    // ---------------------------------------------------------
+    // Binding / Adapter / ViewModel
+    // ---------------------------------------------------------
 
-    private lateinit var binding: FragmentPhotoBinding
+    private var _binding: FragmentPhotoBinding? = null
+    private val binding get() = _binding!!
+
+    private lateinit var photoList: ArrayList<ImageModel>
     private lateinit var viewModel: PhotosViewModel
     private lateinit var photosAdapter: PhotosAdapter
 
+
+    // ---------------------------------------------------------
+    // Folder
+    // ---------------------------------------------------------
+
     private var folderName: String? = null
+
+
+    // ---------------------------------------------------------
+    // Layout
+    // ---------------------------------------------------------
 
     private var isGridView = true
     private var gridSpanCount = 4
 
-    private var currentSortType = SortType.DATE_TAKEN
-    private var currentSortOrder = SortOrder.DESCENDING
+
+    // ---------------------------------------------------------
+    // Sorting
+    // ---------------------------------------------------------
+
+    private var currentSortType =
+        SortType.DATE_TAKEN
+
+    private var currentSortOrder =
+        SortOrder.DESCENDING
+
 
     // ---------------------------------------------------------
     // Delete state
     // ---------------------------------------------------------
 
-    private var pendingDeleteRetryUris: List<android.net.Uri>? = null
+    private var pendingDeleteRetryUris:
+            List<android.net.Uri>? = null
 
-    private var pendingDeleteSuccessMessage = "Deleted"
+    private var pendingDeleteSuccessMessage =
+        "Deleted"
 
 
-    private var pendingTrashItems: List<TrashItem> = emptyList()
-    private var pendingRenamePhoto: ImageModel? = null
-    private var pendingRenameName: String? = null
+    // ---------------------------------------------------------
+    // Trash state
+    // ---------------------------------------------------------
+
+    private var pendingTrashItems:
+            List<TrashItem> = emptyList()
+
+
+    // ---------------------------------------------------------
+    // Rename state
+    // ---------------------------------------------------------
+
+    private var pendingRenamePhoto:
+            ImageModel? = null
+
+    private var pendingRenameName:
+            String? = null
+
+
+    // ---------------------------------------------------------
+    // Rename permission launcher
+    // Android 10+
+    // ---------------------------------------------------------
 
     private val renamePermissionLauncher =
         registerForActivityResult(
             ActivityResultContracts.StartIntentSenderForResult()
         ) { result ->
 
-            if (result.resultCode == Activity.RESULT_OK) {
+            if (
+                result.resultCode ==
+                Activity.RESULT_OK
+            ) {
 
-                val photo = pendingRenamePhoto
-                val newName = pendingRenameName
+                val photo =
+                    pendingRenamePhoto
 
-                if (photo != null && newName != null) {
+                val newName =
+                    pendingRenameName
+
+                if (
+                    photo != null &&
+                    newName != null
+                ) {
 
                     retryRename(
                         photo,
@@ -118,22 +165,36 @@ class PhotoFragment : Fragment() {
             pendingRenameName = null
         }
 
-    // ---------------------------------------------------------
-    // Lifecycle
-    // ---------------------------------------------------------
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
+    // LIFECYCLE
 
-        folderName = arguments?.getString(ARG_FOLDER_NAME)
 
-        val repository = GalleryRepository()
+    override fun onCreate(
+        savedInstanceState: Bundle?
+    ) {
+
+        super.onCreate(
+            savedInstanceState
+        )
+
+        folderName =
+            arguments?.getString(
+                ARG_FOLDER_NAME
+            )
+
+        val repository =
+            GalleryRepository()
 
         val factory =
-            PhotosViewModelFactory(repository)
+            PhotosViewModelFactory(
+                repository
+            )
 
         viewModel =
-            ViewModelProvider(this, factory)[PhotosViewModel::class.java]
+            ViewModelProvider(
+                this,
+                factory
+            )[PhotosViewModel::class.java]
     }
 
 
@@ -143,7 +204,7 @@ class PhotoFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View {
 
-        binding =
+        _binding =
             FragmentPhotoBinding.inflate(
                 inflater,
                 container,
@@ -158,35 +219,63 @@ class PhotoFragment : Fragment() {
         view: View,
         savedInstanceState: Bundle?
     ) {
-        super.onViewCreated(view, savedInstanceState)
 
-        requireActivity().onBackPressedDispatcher.addCallback(
-            viewLifecycleOwner,
-            object : OnBackPressedCallback(true) {
-
-                override fun handleOnBackPressed() {
-
-                    if (viewModel.isSelectionMode.value == true) {
-
-                        // Exit selection mode
-                        viewModel.exitSelectionMode()
-
-                    } else {
-
-                        // Normal Android Back behavior
-                        isEnabled = false
-                        requireActivity()
-                            .onBackPressedDispatcher
-                            .onBackPressed()
-                    }
-                }
-            }
+        super.onViewCreated(
+            view,
+            savedInstanceState
         )
 
+
+        photoList =
+            ArrayList()
+
+
+        // -----------------------------------------------------
+        // Android Back
+        // -----------------------------------------------------
+
+        requireActivity()
+            .onBackPressedDispatcher
+            .addCallback(
+                viewLifecycleOwner,
+                object : OnBackPressedCallback(true) {
+
+                    override fun handleOnBackPressed() {
+
+                        if (
+                            viewModel
+                                .isSelectionMode
+                                .value == true
+                        ) {
+
+                            viewModel
+                                .exitSelectionMode()
+
+                        } else {
+
+                            isEnabled = false
+
+                            requireActivity()
+                                .onBackPressedDispatcher
+                                .onBackPressed()
+                        }
+                    }
+                }
+            )
+
+
         setupObservers()
+
         setupBasicViews()
+
         setupNormalPhotoMenu()
+
         setupSelectionMenu()
+
+
+        // -----------------------------------------------------
+        // Load Photos
+        // -----------------------------------------------------
 
         viewModel.loadPhotos(
             requireContext(),
@@ -198,45 +287,76 @@ class PhotoFragment : Fragment() {
 
 
     override fun onResume() {
+
         super.onResume()
 
+
         /*
-         * PhotoFragment is a normal screen, so the bottom navigation
-         * must be visible when we return from Preview/Slideshow.
+         * PhotoFragment is a normal screen.
+         * Show BottomNavigation when returning
+         * from Preview / Slideshow.
          */
+
         (activity as? MainActivity)
             ?.showBottomNavigation()
 
+
         /*
-         * Restore the current selection state after returning from
-         * another Fragment such as SlideShowFragment.
+         * Restore selection state after returning
+         * from another Fragment.
          */
-        if (::photosAdapter.isInitialized) {
+
+        if (
+            ::photosAdapter.isInitialized
+        ) {
 
             photosAdapter.setSelectionState(
-                viewModel.isSelectionMode.value == true,
-                viewModel.selectedPhotoIds.value ?: emptySet()
+                viewModel
+                    .isSelectionMode
+                    .value == true,
+
+                viewModel
+                    .selectedPhotoIds
+                    .value
+                    ?: emptySet()
             )
 
             updateSelectionMode(
-                viewModel.isSelectionMode.value == true
+                viewModel
+                    .isSelectionMode
+                    .value == true
             )
 
             updateSelectionCount(
-                viewModel.selectedPhotoIds.value ?: emptySet()
+                viewModel
+                    .selectedPhotoIds
+                    .value
+                    ?: emptySet()
             )
         }
     }
 
 
-    // =========================================================
+    override fun onDestroyView() {
+
+        super.onDestroyView()
+
+        _binding = null
+    }
+
+
     // OBSERVERS
-    // =========================================================
+
 
     private fun setupObservers() {
 
-        viewModel.uiState.observe(viewLifecycleOwner) { state ->
-            renderState(state)
+        viewModel.uiState.observe(
+            viewLifecycleOwner
+        ) { state ->
+
+            renderState(
+                state
+            )
         }
 
 
@@ -244,13 +364,19 @@ class PhotoFragment : Fragment() {
             viewLifecycleOwner
         ) { isSelecting ->
 
-            updateSelectionMode(isSelecting)
+            updateSelectionMode(
+                isSelecting
+            )
 
-            if (::photosAdapter.isInitialized) {
+            if (
+                ::photosAdapter.isInitialized
+            ) {
 
                 photosAdapter.setSelectionState(
                     isSelecting,
-                    viewModel.selectedPhotoIds.value
+                    viewModel
+                        .selectedPhotoIds
+                        .value
                         ?: emptySet()
                 )
             }
@@ -261,12 +387,18 @@ class PhotoFragment : Fragment() {
             viewLifecycleOwner
         ) { selectedIds ->
 
-            updateSelectionCount(selectedIds)
+            updateSelectionCount(
+                selectedIds
+            )
 
-            if (::photosAdapter.isInitialized) {
+            if (
+                ::photosAdapter.isInitialized
+            ) {
 
                 photosAdapter.setSelectionState(
-                    viewModel.isSelectionMode.value == true,
+                    viewModel
+                        .isSelectionMode
+                        .value == true,
                     selectedIds
                 )
             }
@@ -274,43 +406,51 @@ class PhotoFragment : Fragment() {
     }
 
 
-    // =========================================================
     // BASIC UI
-    // =========================================================
+
 
     private fun setupBasicViews() {
 
         binding.tvTitle.text =
             folderName ?: "Photos"
 
+
         binding.recyclerPhotos.layoutManager =
             buildGridLayoutManager()
 
 
         binding.btnGridView.setOnClickListener {
-            applyLayoutStyle(true)
+
+            applyLayoutStyle(
+                true
+            )
         }
 
 
         binding.btnListView.setOnClickListener {
-            applyLayoutStyle(false)
+
+            applyLayoutStyle(
+                false
+            )
         }
 
 
         binding.btnExitSelection.setOnClickListener {
+
             viewModel.exitSelectionMode()
         }
 
 
         binding.btnBack.setOnClickListener {
 
-            parentFragmentManager.popBackStack()
+            parentFragmentManager
+                .popBackStack()
         }
     }
 
 
-
     // NORMAL PHOTO MENU
+
 
     private fun setupNormalPhotoMenu() {
 
@@ -326,17 +466,15 @@ class PhotoFragment : Fragment() {
                     PhotoAction.SELECT -> {
 
                         /*
-                         * Selection mode is normally entered by
-                         * long-pressing a photo.
-                         *
-                         * Keep this empty for now unless your Figma
-                         * requires tapping SELECT to enter it.
+                         * Selection normally starts
+                         * with long press.
                          */
                     }
 
 
                     PhotoAction.PIN -> {
-                        // Implement later
+
+                        // TODO: Implement PIN
                     }
 
 
@@ -350,7 +488,8 @@ class PhotoFragment : Fragment() {
 
                         sheet.setListener(
                             object :
-                                SortBottomSheet.OnSortSelected {
+                                SortBottomSheet
+                                .OnSortSelected {
 
                                 override fun onSortSelected(
                                     sortType: SortType,
@@ -381,7 +520,8 @@ class PhotoFragment : Fragment() {
 
 
                     PhotoAction.FILTER -> {
-                        // Implement later
+
+                        // TODO: Implement filter
                     }
 
 
@@ -401,7 +541,9 @@ class PhotoFragment : Fragment() {
                                     isGrid: Boolean
                                 ) {
 
-                                    applyLayoutStyle(isGrid)
+                                    applyLayoutStyle(
+                                        isGrid
+                                    )
                                 }
                             }
                         )
@@ -429,7 +571,9 @@ class PhotoFragment : Fragment() {
                                     column: Int
                                 ) {
 
-                                    applyColumn(column)
+                                    applyColumn(
+                                        column
+                                    )
                                 }
                             }
                         )
@@ -443,11 +587,6 @@ class PhotoFragment : Fragment() {
 
                     PhotoAction.SLIDE_SHOW -> {
 
-                        /*
-                         * Normal three-dot menu:
-                         * slideshow uses ALL photos currently
-                         * displayed on this screen.
-                         */
                         startSlideShow(
                             photoList,
                             0
@@ -459,16 +598,19 @@ class PhotoFragment : Fragment() {
     }
 
 
-    // =========================================================
     // SELECTION MENU
-    // =========================================================
+
 
     private fun setupSelectionMenu() {
 
         binding.btnSelectionMenu.setOnClickListener {
 
             val selectedCount =
-                viewModel.selectedPhotoIds.value?.size ?: 0
+                viewModel
+                    .selectedPhotoIds
+                    .value
+                    ?.size
+                    ?: 0
 
             if (selectedCount == 0) {
                 return@setOnClickListener
@@ -482,12 +624,22 @@ class PhotoFragment : Fragment() {
             ) { action ->
 
                 when (action) {
+
+                    // -------------------------------------------------
+                    // COPY
+                    // -------------------------------------------------
+
                     PhotoSelectionAction.COPY -> {
 
                         showPhotoAlbumPicker(
                             AlbumPickerBottomSheet.Mode.COPY
                         )
                     }
+
+
+                    // -------------------------------------------------
+                    // MOVE
+                    // -------------------------------------------------
 
                     PhotoSelectionAction.MOVE -> {
 
@@ -496,12 +648,20 @@ class PhotoFragment : Fragment() {
                         )
                     }
 
+
+                    // -------------------------------------------------
+                    // RENAME
+                    // -------------------------------------------------
+
                     PhotoSelectionAction.RENAME -> {
 
                         val selectedPhotos =
-                            viewModel.getSelectedPhotos()
+                            viewModel
+                                .getSelectedPhotos()
 
-                        if (selectedPhotos.size == 1) {
+                        if (
+                            selectedPhotos.size == 1
+                        ) {
 
                             showRenameDialog(
                                 selectedPhotos.first()
@@ -509,17 +669,30 @@ class PhotoFragment : Fragment() {
                         }
                     }
 
+
+                    // -------------------------------------------------
+                    // FAVORITE
+                    // -------------------------------------------------
+
                     PhotoSelectionAction.FAVORITE -> {
 
                         toggleFavoriteSelected()
                     }
 
+
+                    // -------------------------------------------------
+                    // SLIDESHOW
+                    // -------------------------------------------------
+
                     PhotoSelectionAction.SLIDE_SHOW -> {
 
                         val selectedPhotos =
-                            viewModel.getSelectedPhotos()
+                            viewModel
+                                .getSelectedPhotos()
 
-                        if (selectedPhotos.isEmpty()) {
+                        if (
+                            selectedPhotos.isEmpty()
+                        ) {
                             return@show
                         }
 
@@ -530,12 +703,19 @@ class PhotoFragment : Fragment() {
                     }
 
 
+                    // -------------------------------------------------
+                    // EDIT WITH
+                    // -------------------------------------------------
+
                     PhotoSelectionAction.EDIT_WITH -> {
 
                         val selectedPhotos =
-                            viewModel.getSelectedPhotos()
+                            viewModel
+                                .getSelectedPhotos()
 
-                        if (selectedPhotos.size == 1) {
+                        if (
+                            selectedPhotos.size == 1
+                        ) {
 
                             openPhotoForEdit(
                                 selectedPhotos.first()
@@ -543,12 +723,20 @@ class PhotoFragment : Fragment() {
                         }
                     }
 
+
+                    // -------------------------------------------------
+                    // WALLPAPER
+                    // -------------------------------------------------
+
                     PhotoSelectionAction.SET_AS_WALLPAPER -> {
 
                         val selectedPhotos =
-                            viewModel.getSelectedPhotos()
+                            viewModel
+                                .getSelectedPhotos()
 
-                        if (selectedPhotos.size == 1) {
+                        if (
+                            selectedPhotos.size == 1
+                        ) {
 
                             showWallpaperDialog(
                                 selectedPhotos.first()
@@ -556,27 +744,50 @@ class PhotoFragment : Fragment() {
                         }
                     }
 
+
+                    // -------------------------------------------------
+                    // SHARE
+                    // -------------------------------------------------
+
                     PhotoSelectionAction.SHARE -> {
 
                         shareSelectedPhotos()
                     }
+
+
+                    // -------------------------------------------------
+                    // DELETE
+                    // -------------------------------------------------
 
                     PhotoSelectionAction.DELETE -> {
 
                         confirmAndDeleteSelectedPhotos()
                     }
 
-                    PhotoSelectionAction.DETAILS -> {
-                        showSelectedDetails()
 
+                    // -------------------------------------------------
+                    // DETAILS
+                    // -------------------------------------------------
+
+                    PhotoSelectionAction.DETAILS -> {
+
+                        showSelectedDetails()
                     }
+
+
+                    // -------------------------------------------------
+                    // OPEN WITH
+                    // -------------------------------------------------
 
                     PhotoSelectionAction.OPEN_WITH -> {
 
                         val selectedPhotos =
-                            viewModel.getSelectedPhotos()
+                            viewModel
+                                .getSelectedPhotos()
 
-                        if (selectedPhotos.size == 1) {
+                        if (
+                            selectedPhotos.size == 1
+                        ) {
 
                             openPhotoWith(
                                 selectedPhotos.first()
@@ -588,6 +799,10 @@ class PhotoFragment : Fragment() {
         }
     }
 
+
+    // DETAILS
+
+
     private fun showSelectedDetails() {
 
         val selectedPhotos =
@@ -598,20 +813,24 @@ class PhotoFragment : Fragment() {
             selectedPhotos
         )
     }
+
+
+    // FAVORITE
+
+
     /**
-     * Behavior for a mixed selection (some favorited, some not):
-     * if EVERY selected photo is already favorited, this removes
-     * them all from Favorites. Otherwise, it favorites whichever
-     * selected photos aren't already favorited (existing favorites
-     * in the selection are left untouched). This matches how most
-     * gallery apps handle a bulk "Favorite" tap on a mixed selection —
-     * a single tap shouldn't accidentally unfavorite something the
-     * user didn't mean to touch.
+     * Adds all selected photos to Favorites.
+     * Already-favorited photos are left unchanged.
      */
+
     private fun toggleFavoriteSelected() {
 
         val selectedPhotos =
             viewModel.getSelectedPhotos()
+
+        if (selectedPhotos.isEmpty()) {
+            return
+        }
 
         PhotoSelectionActions.addToFavorites(
             requireContext(),
@@ -622,48 +841,65 @@ class PhotoFragment : Fragment() {
     }
 
 
-    // Rename
+    // RENAME
+
+
     private fun showRenameDialog(
         photo: ImageModel
     ) {
 
-        val editText = EditText(requireContext()).apply {
+        val editText =
+            EditText(
+                requireContext()
+            ).apply {
 
-            setSingleLine(true)
+                setSingleLine(true)
 
-            setText(
-                photo.name.substringBeforeLast(
-                    ".",
-                    photo.name
+                setText(
+                    photo.name.substringBeforeLast(
+                        ".",
+                        photo.name
+                    )
                 )
-            )
 
-            selectAll()
-        }
+                selectAll()
+            }
 
 
-        val container = LinearLayout(
-            requireContext()
-        ).apply {
+        val container =
+            LinearLayout(
+                requireContext()
+            ).apply {
 
-            orientation = LinearLayout.VERTICAL
+                orientation =
+                    LinearLayout.VERTICAL
 
-            setPadding(
-                24,
-                0,
-                24,
-                0
-            )
+                setPadding(
+                    24,
+                    0,
+                    24,
+                    0
+                )
 
-            addView(editText)
-        }
+                addView(
+                    editText
+                )
+            }
 
 
         val dialog =
-            AlertDialog.Builder(requireContext())
-                .setTitle("Rename")
-                .setMessage("Enter a name for this album.")
-                .setView(container)
+            AlertDialog.Builder(
+                requireContext()
+            )
+                .setTitle(
+                    "Rename"
+                )
+                .setMessage(
+                    "Enter a name for this photo."
+                )
+                .setView(
+                    container
+                )
                 .setNegativeButton(
                     "Cancel",
                     null
@@ -687,7 +923,9 @@ class PhotoFragment : Fragment() {
                         .trim()
 
 
-                if (newName.isEmpty()) {
+                if (
+                    newName.isEmpty()
+                ) {
 
                     editText.error =
                         "Name cannot be empty"
@@ -705,7 +943,8 @@ class PhotoFragment : Fragment() {
                         )
                 ) {
 
-                    is PhotoMenuActions.RenameResult.Success -> {
+                    is PhotoMenuActions
+                    .RenameResult.Success -> {
 
                         Toast.makeText(
                             requireContext(),
@@ -721,7 +960,9 @@ class PhotoFragment : Fragment() {
                         )
                     }
 
-                    is PhotoMenuActions.RenameResult.Error -> {
+
+                    is PhotoMenuActions
+                    .RenameResult.Error -> {
 
                         Toast.makeText(
                             requireContext(),
@@ -730,21 +971,29 @@ class PhotoFragment : Fragment() {
                         ).show()
                     }
 
-                    is PhotoMenuActions.RenameResult.NeedsPermission -> {
 
-                        pendingRenamePhoto = photo
-                        pendingRenameName = newName
+                    is PhotoMenuActions
+                    .RenameResult.NeedsPermission -> {
+
+                        pendingRenamePhoto =
+                            photo
+
+                        pendingRenameName =
+                            newName
+
 
                         val request =
                             IntentSenderRequest.Builder(
                                 result.intentSender
                             ).build()
 
-                        renamePermissionLauncher.launch(
-                            request
-                        )
+                        renamePermissionLauncher
+                            .launch(
+                                request
+                            )
                     }
                 }
+
 
                 dialog.dismiss()
             }
@@ -753,6 +1002,7 @@ class PhotoFragment : Fragment() {
 
         dialog.show()
     }
+
 
     private fun retryRename(
         photo: ImageModel,
@@ -768,7 +1018,8 @@ class PhotoFragment : Fragment() {
                 )
         ) {
 
-            is PhotoMenuActions.RenameResult.Success -> {
+            is PhotoMenuActions
+            .RenameResult.Success -> {
 
                 Toast.makeText(
                     requireContext(),
@@ -784,7 +1035,9 @@ class PhotoFragment : Fragment() {
                 )
             }
 
-            is PhotoMenuActions.RenameResult.Error -> {
+
+            is PhotoMenuActions
+            .RenameResult.Error -> {
 
                 Toast.makeText(
                     requireContext(),
@@ -793,131 +1046,54 @@ class PhotoFragment : Fragment() {
                 ).show()
             }
 
-            is PhotoMenuActions.RenameResult.NeedsPermission -> {
 
-                // Permission was already requested.
-                // If Android asks again, launch it again.
+            is PhotoMenuActions
+            .RenameResult.NeedsPermission -> {
+
                 val request =
                     IntentSenderRequest.Builder(
                         result.intentSender
                     ).build()
 
-                renamePermissionLauncher.launch(
-                    request
-                )
+                renamePermissionLauncher
+                    .launch(
+                        request
+                    )
             }
         }
     }
 
 
-    private fun renamePhoto(
-        photo: ImageModel,
-        newName: String
-    ) {
+    // OPEN WITH
 
-        try {
-
-            val extension =
-                photo.name
-                    .substringAfterLast(
-                        ".",
-                        ""
-                    )
-
-
-            val finalName =
-                if (
-                    extension.isNotEmpty() &&
-                    !newName.contains(".")
-                ) {
-
-                    "$newName.$extension"
-
-                } else {
-
-                    newName
-                }
-
-
-            val values =
-                ContentValues().apply {
-
-                    put(
-                        MediaStore.MediaColumns.DISPLAY_NAME,
-                        finalName
-                    )
-                }
-
-
-            val updated =
-                requireContext()
-                    .contentResolver
-                    .update(
-                        photo.uri,
-                        values,
-                        null,
-                        null
-                    )
-
-
-            if (updated > 0) {
-
-                Toast.makeText(
-                    requireContext(),
-                    "Renamed successfully",
-                    Toast.LENGTH_SHORT
-                ).show()
-
-
-                viewModel.loadPhotos(
-                    requireContext(),
-                    folderName,
-                    currentSortType,
-                    currentSortOrder
-                )
-
-            } else {
-
-                Toast.makeText(
-                    requireContext(),
-                    "Rename failed",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-
-        } catch (e: Exception) {
-
-            Toast.makeText(
-                requireContext(),
-                "Rename failed: ${e.message}",
-                Toast.LENGTH_SHORT
-            ).show()
-        }
-    }
-
-    // Open With
 
     private fun openPhotoWith(
         photo: ImageModel
     ) {
+
         PhotoMenuActions.openWith(
             requireContext(),
             photo
         )
     }
 
-    // Edit With
+
+    // EDIT WITH
+
 
     private fun openPhotoForEdit(
         photo: ImageModel
     ) {
+
         PhotoMenuActions.editWith(
             requireContext(),
             photo
         )
     }
 
-    // Set AS Wallpaper
+
+    // WALLPAPER
+
 
     private fun showWallpaperDialog(
         photo: ImageModel
@@ -930,168 +1106,8 @@ class PhotoFragment : Fragment() {
     }
 
 
-    private fun applyWallpaper(
-        photo: ImageModel,
-        option: Int
-    ) {
-
-        try {
-
-            val wallpaperManager =
-                WallpaperManager.getInstance(requireContext())
-
-            val inputStream =
-                requireContext()
-                    .contentResolver
-                    .openInputStream(photo.uri)
-                    ?: return
-
-            val originalBitmap =
-                BitmapFactory.decodeStream(inputStream)
-
-            inputStream.close()
-
-            if (originalBitmap == null) {
-                Toast.makeText(
-                    requireContext(),
-                    "Unable to load image",
-                    Toast.LENGTH_SHORT
-                ).show()
-                return
-            }
-
-            val targetWidth =
-                wallpaperManager.desiredMinimumWidth
-
-            val targetHeight =
-                wallpaperManager.desiredMinimumHeight
-
-            val wallpaperBitmap =
-                createWallpaperBitmap(
-                    originalBitmap,
-                    targetWidth,
-                    targetHeight
-                )
-
-            when (option) {
-
-                // Home Screen
-                0 -> {
-
-                    wallpaperManager.setBitmap(
-                        wallpaperBitmap,
-                        null,
-                        true,
-                        WallpaperManager.FLAG_SYSTEM
-                    )
-                }
-
-                // Lock Screen
-                1 -> {
-
-                    wallpaperManager.setBitmap(
-                        wallpaperBitmap,
-                        null,
-                        true,
-                        WallpaperManager.FLAG_LOCK
-                    )
-                }
-
-                // Both
-                2 -> {
-
-                    wallpaperManager.setBitmap(
-                        wallpaperBitmap,
-                        null,
-                        true,
-                        WallpaperManager.FLAG_SYSTEM
-                                or WallpaperManager.FLAG_LOCK
-                    )
-                }
-            }
-
-            Toast.makeText(
-                requireContext(),
-                "Wallpaper applied",
-                Toast.LENGTH_SHORT
-            ).show()
-
-        } catch (e: Exception) {
-
-            Toast.makeText(
-                requireContext(),
-                "Unable to set wallpaper",
-                Toast.LENGTH_LONG
-            ).show()
-        }
-    }
-
-    private fun createWallpaperBitmap(
-        source: Bitmap,
-        targetWidth: Int,
-        targetHeight: Int
-    ): Bitmap {
-
-        val sourceWidth = source.width
-        val sourceHeight = source.height
-
-        val sourceRatio =
-            sourceWidth.toFloat() / sourceHeight
-
-        val targetRatio =
-            targetWidth.toFloat() / targetHeight
-
-        val cropWidth: Int
-        val cropHeight: Int
-        val cropX: Int
-        val cropY: Int
-
-        if (sourceRatio > targetRatio) {
-
-            // Image is wider than target.
-            // Crop left and right.
-            cropHeight = sourceHeight
-            cropWidth =
-                (sourceHeight * targetRatio).toInt()
-
-            cropX =
-                (sourceWidth - cropWidth) / 2
-
-            cropY = 0
-
-        } else {
-
-            // Image is taller than target.
-            // Crop top and bottom.
-            cropWidth = sourceWidth
-            cropHeight =
-                (sourceWidth / targetRatio).toInt()
-
-            cropX = 0
-
-            cropY =
-                (sourceHeight - cropHeight) / 2
-        }
-
-        val croppedBitmap =
-            Bitmap.createBitmap(
-                source,
-                cropX,
-                cropY,
-                cropWidth,
-                cropHeight
-            )
-
-        return Bitmap.createScaledBitmap(
-            croppedBitmap,
-            targetWidth,
-            targetHeight,
-            true
-        )
-    }
-
-
     // SLIDESHOW
+
 
     private fun startSlideShow(
         images: List<ImageModel>,
@@ -1117,33 +1133,38 @@ class PhotoFragment : Fragment() {
             )
 
 
-        parentFragmentManager.beginTransaction()
+        parentFragmentManager
+            .beginTransaction()
             .replace(
                 R.id.frameContainer,
                 slideshow
             )
-            .addToBackStack("slide_show")
+            .addToBackStack(
+                "slide_show"
+            )
             .commit()
     }
 
 
-    // =========================================================
     // SHARE
-    // =========================================================
+
 
     private fun shareSelectedPhotos() {
 
+        val selectedPhotos =
+            viewModel.getSelectedPhotos()
+
+        if (selectedPhotos.isEmpty()) {
+            return
+        }
+
         PhotoSelectionActions.share(
             requireContext(),
-            viewModel.getSelectedPhotos()
+            selectedPhotos
         )
     }
 
-
-    // =========================================================
     // COPY / MOVE ALBUM PICKER
-    // =========================================================
-
     private fun showPhotoAlbumPicker(
         mode: AlbumPickerBottomSheet.Mode
     ) {
@@ -1165,7 +1186,9 @@ class PhotoFragment : Fragment() {
 
         val excludedNames =
             selectedPhotos
-                .map { it.folderName }
+                .map {
+                    it.folderName
+                }
                 .distinct()
 
 
@@ -1206,26 +1229,15 @@ class PhotoFragment : Fragment() {
     }
 
 
-    // =========================================================
     // COPY
-    // =========================================================
+
 
     private fun performPhotoCopy(
         photos: List<ImageModel>,
         destinationAlbumName: String
     ) {
 
-        val uris =
-            photos.map { it.uri }
-
-        if (uris.isEmpty()) {
-
-            Toast.makeText(
-                requireContext(),
-                "No photos to copy",
-                Toast.LENGTH_SHORT
-            ).show()
-
+        if (photos.isEmpty()) {
             return
         }
 
@@ -1233,9 +1245,10 @@ class PhotoFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
 
             val result =
-                viewModel.repository.copyImages(
+                PhotoSelectionActions.copy(
                     requireContext(),
-                    uris,
+                    viewModel.repository,
+                    photos,
                     destinationAlbumName
                 )
 
@@ -1267,46 +1280,52 @@ class PhotoFragment : Fragment() {
 
                 Toast.makeText(
                     requireContext(),
-                    "Copy failed: ${result.exceptionOrNull()?.message}",
+                    "Copy failed: ${
+                        result.exceptionOrNull()?.message
+                    }",
                     Toast.LENGTH_SHORT
                 ).show()
             }
         }
     }
 
+
     // MOVE
+
 
     private fun performPhotoMove(
         photos: List<ImageModel>,
         destinationAlbumName: String
     ) {
 
-        val uris =
-            photos.map { it.uri }
-
-        if (uris.isEmpty()) {
-
-            Toast.makeText(
-                requireContext(),
-                "No photos to move",
-                Toast.LENGTH_SHORT
-            ).show()
-
+        if (photos.isEmpty()) {
             return
         }
+
+
+        val uris =
+            photos.map {
+                it.uri
+            }
 
 
         viewLifecycleOwner.lifecycleScope.launch {
 
             val copyResult =
-                viewModel.repository.copyImages(
+                PhotoSelectionActions.move(
                     requireContext(),
-                    uris,
+                    viewModel.repository,
+                    photos,
                     destinationAlbumName
                 )
 
 
             if (copyResult.isSuccess) {
+
+                /*
+                 * Copy succeeded.
+                 * Now delete the originals.
+                 */
 
                 viewModel.deleteImages(
                     requireContext(),
@@ -1323,7 +1342,11 @@ class PhotoFragment : Fragment() {
 
                 Toast.makeText(
                     requireContext(),
-                    "Move failed: ${copyResult.exceptionOrNull()?.message}",
+                    "Move failed: ${
+                        copyResult
+                            .exceptionOrNull()
+                            ?.message
+                    }",
                     Toast.LENGTH_SHORT
                 ).show()
             }
@@ -1331,14 +1354,14 @@ class PhotoFragment : Fragment() {
     }
 
 
-    // =========================================================
-    // DELETE
-    // =========================================================
+    // DELETE / TRASH
+
 
     private fun confirmAndDeleteSelectedPhotos() {
 
         val selectedPhotos =
             viewModel.getSelectedPhotos()
+
 
         if (selectedPhotos.isEmpty()) {
 
@@ -1351,12 +1374,18 @@ class PhotoFragment : Fragment() {
             return
         }
 
+
         val count =
             selectedPhotos.size
 
-        AlertDialog.Builder(requireContext())
+
+        AlertDialog.Builder(
+            requireContext()
+        )
             .setTitle(
-                "Delete $count item${if (count > 1) "s" else ""}?"
+                "Delete $count item${
+                    if (count > 1) "s" else ""
+                }?"
             )
             .setMessage(
                 "The selected items will be moved to Trash."
@@ -1376,6 +1405,7 @@ class PhotoFragment : Fragment() {
             .show()
     }
 
+
     private fun moveSelectedPhotosToTrash(
         photos: List<ImageModel>
     ) {
@@ -1390,7 +1420,9 @@ class PhotoFragment : Fragment() {
                 Toast.makeText(
                     requireContext(),
                     "Unable to move to Trash: ${
-                        result.exceptionOrNull()?.message
+                        result
+                            .exceptionOrNull()
+                            ?.message
                     }",
                     Toast.LENGTH_LONG
                 ).show()
@@ -1398,11 +1430,12 @@ class PhotoFragment : Fragment() {
                 return@moveImagesToTrash
             }
 
+
             /*
-             * The Trash copies are now created.
+             * Trash copies are now created.
              *
-             * We still need to delete the original MediaStore
-             * items using the existing DeleteResult flow.
+             * Delete the original MediaStore items
+             * using the existing DeleteResult flow.
              */
 
             val trashItems =
@@ -1415,16 +1448,20 @@ class PhotoFragment : Fragment() {
                     }
                 }
 
+
             pendingTrashItems =
                 trashItems
+
 
             val uris =
                 photos.map {
                     it.uri
                 }
 
+
             pendingDeleteSuccessMessage =
                 "Moved to Trash"
+
 
             viewModel.deleteImages(
                 requireContext(),
@@ -1454,9 +1491,13 @@ class PhotoFragment : Fragment() {
             )
         }
 
+
         pendingTrashItems =
             emptyList()
     }
+
+
+    // DELETE PERMISSION
 
 
     private val deleteIntentSenderLauncher =
@@ -1471,6 +1512,7 @@ class PhotoFragment : Fragment() {
 
                 val retryUris =
                     pendingDeleteRetryUris
+
 
                 pendingDeleteRetryUris =
                     null
@@ -1501,7 +1543,9 @@ class PhotoFragment : Fragment() {
                 pendingDeleteRetryUris =
                     null
 
+
                 clearPendingTrash()
+
 
                 Toast.makeText(
                     requireContext(),
@@ -1519,6 +1563,10 @@ class PhotoFragment : Fragment() {
 
         when (result) {
 
+            // -------------------------------------------------
+            // Success
+            // -------------------------------------------------
+
             is DeleteResult.Success -> {
 
                 onDeleteFinished(
@@ -1526,6 +1574,10 @@ class PhotoFragment : Fragment() {
                 )
             }
 
+
+            // -------------------------------------------------
+            // Android 11+
+            // -------------------------------------------------
 
             is DeleteResult.ConfirmDelete -> {
 
@@ -1544,6 +1596,10 @@ class PhotoFragment : Fragment() {
             }
 
 
+            // -------------------------------------------------
+            // Android 10
+            // -------------------------------------------------
+
             is DeleteResult.GrantPermissionThenRetry -> {
 
                 pendingDeleteRetryUris =
@@ -1561,9 +1617,14 @@ class PhotoFragment : Fragment() {
             }
 
 
+            // -------------------------------------------------
+            // Error
+            // -------------------------------------------------
+
             is DeleteResult.Error -> {
 
                 clearPendingTrash()
+
 
                 Toast.makeText(
                     requireContext(),
@@ -1598,9 +1659,8 @@ class PhotoFragment : Fragment() {
     }
 
 
-    // =========================================================
     // LAYOUT
-    // =========================================================
+
 
     private fun buildGridLayoutManager():
             GridLayoutManager {
@@ -1645,10 +1705,13 @@ class PhotoFragment : Fragment() {
         isGrid: Boolean
     ) {
 
-        isGridView = isGrid
+        isGridView =
+            isGrid
 
 
-        if (::photosAdapter.isInitialized) {
+        if (
+            ::photosAdapter.isInitialized
+        ) {
 
             photosAdapter.setViewMode(
                 isGrid
@@ -1674,7 +1737,8 @@ class PhotoFragment : Fragment() {
         column: Int
     ) {
 
-        gridSpanCount = column
+        gridSpanCount =
+            column
 
 
         if (isGridView) {
@@ -1685,9 +1749,8 @@ class PhotoFragment : Fragment() {
     }
 
 
-    // =========================================================
     // SELECTION UI
-    // =========================================================
+
 
     private fun updateSelectionMode(
         isSelecting: Boolean
@@ -1695,7 +1758,10 @@ class PhotoFragment : Fragment() {
 
         if (isSelecting) {
 
+            // -------------------------------------------------
             // Normal header
+            // -------------------------------------------------
+
             binding.btnBack.visibility =
                 View.GONE
 
@@ -1709,24 +1775,27 @@ class PhotoFragment : Fragment() {
                 View.GONE
 
 
+            // -------------------------------------------------
             // Grid/List toggle
+            // -------------------------------------------------
+
             binding.viewToggleGroup.visibility =
                 View.GONE
 
 
+            // -------------------------------------------------
             // Selection header
+            // -------------------------------------------------
+
             binding.selectionHeader.visibility =
                 View.VISIBLE
 
 
-            /*
-             * Horizontal filter chips exist ONLY
-             * on the All Photos screen.
-             *
-             * Album screen:
-             * folderName != null
-             * → filters hidden.
-             */
+            // -------------------------------------------------
+            // Selection filters
+            // Only All Photos has filters
+            // -------------------------------------------------
+
             binding.selectionFilters.visibility =
                 if (folderName == null) {
                     View.VISIBLE
@@ -1736,7 +1805,10 @@ class PhotoFragment : Fragment() {
 
         } else {
 
+            // -------------------------------------------------
             // Normal header
+            // -------------------------------------------------
+
             binding.btnBack.visibility =
                 View.VISIBLE
 
@@ -1750,12 +1822,18 @@ class PhotoFragment : Fragment() {
                 View.VISIBLE
 
 
+            // -------------------------------------------------
             // Grid/List
+            // -------------------------------------------------
+
             binding.viewToggleGroup.visibility =
                 View.VISIBLE
 
 
+            // -------------------------------------------------
             // Selection UI
+            // -------------------------------------------------
+
             binding.selectionHeader.visibility =
                 View.GONE
 
@@ -1771,6 +1849,7 @@ class PhotoFragment : Fragment() {
 
         val selectedCount =
             selectedIds.size
+
 
         val totalPhotos =
             photoList.size
@@ -1799,9 +1878,8 @@ class PhotoFragment : Fragment() {
     }
 
 
-    // =========================================================
     // RENDER STATE
-    // =========================================================
+
 
     private fun renderState(
         state: PhotosUiState
@@ -1819,6 +1897,10 @@ class PhotoFragment : Fragment() {
 
         when (state) {
 
+            // -------------------------------------------------
+            // Loading
+            // -------------------------------------------------
+
             is PhotosUiState.Loading -> {
 
                 binding.progressBar.visibility =
@@ -1826,19 +1908,31 @@ class PhotoFragment : Fragment() {
             }
 
 
+            // -------------------------------------------------
+            // Empty
+            // -------------------------------------------------
+
             is PhotosUiState.Empty -> {
 
                 photoList.clear()
 
+
                 binding.layoutEmptyState.visibility =
                     View.VISIBLE
 
+
                 updateSelectionCount(
-                    viewModel.selectedPhotoIds.value
+                    viewModel
+                        .selectedPhotoIds
+                        .value
                         ?: emptySet()
                 )
             }
 
+
+            // -------------------------------------------------
+            // Success
+            // -------------------------------------------------
 
             is PhotosUiState.Success -> {
 
@@ -1847,7 +1941,7 @@ class PhotoFragment : Fragment() {
 
 
                 // ---------------------------------------------
-                // Extract only actual photos.
+                // Extract actual photos.
                 // DateHeader items are ignored.
                 // ---------------------------------------------
 
@@ -1884,10 +1978,10 @@ class PhotoFragment : Fragment() {
                         isGridView = isGridView,
                         items = state.items,
 
+
                         // Normal tap
-                        onPhotoClick = {
-                                photo,
-                                position ->
+                        onPhotoClick = { photo,
+                                         position ->
 
                             val previewPhoto =
                                 PhotoPreviewFragment()
@@ -1917,46 +2011,44 @@ class PhotoFragment : Fragment() {
                                     R.id.frameContainer,
                                     previewPhoto
                                 )
-                                .addToBackStack(null)
+                                .addToBackStack(
+                                    null
+                                )
                                 .commit()
                         },
 
 
                         // Long press
-                        onPhotoLongClick = {
-                                photo ->
+                        onPhotoLongClick = { photo ->
 
-                            viewModel
-                                .enterSelectionMode(
-                                    photo.image
-                                )
+                            viewModel.enterSelectionMode(
+                                photo.image
+                            )
                         },
 
 
                         // Tap while selecting
-                        onPhotoToggleSelect = {
-                                photo ->
+                        onPhotoToggleSelect = { photo ->
 
-                            viewModel
-                                .toggleSelection(
-                                    photo.image
-                                )
+                            viewModel.toggleSelection(
+                                photo.image
+                            )
                         }
                     )
 
 
                 // ---------------------------------------------
-                // IMPORTANT:
-                // Restore selection state immediately.
-                //
-                // This fixes:
-                // "count is visible but filled circles
-                // are missing after returning from slideshow."
+                // Restore selection state
                 // ---------------------------------------------
 
                 photosAdapter.setSelectionState(
-                    viewModel.isSelectionMode.value == true,
-                    viewModel.selectedPhotoIds.value
+                    viewModel
+                        .isSelectionMode
+                        .value == true,
+
+                    viewModel
+                        .selectedPhotoIds
+                        .value
                         ?: emptySet()
                 )
 
@@ -1983,24 +2075,27 @@ class PhotoFragment : Fragment() {
 
 
                 // ---------------------------------------------
-                // Update selection count AFTER photoList
-                // has been rebuilt.
+                // Update selection count
                 // ---------------------------------------------
 
                 updateSelectionCount(
-                    viewModel.selectedPhotoIds.value
+                    viewModel
+                        .selectedPhotoIds
+                        .value
                         ?: emptySet()
                 )
 
 
-                // Restore selection UI after rendering.
+                // ---------------------------------------------
+                // Restore selection UI
+                // ---------------------------------------------
+
                 updateSelectionMode(
-                    viewModel.isSelectionMode.value == true
+                    viewModel
+                        .isSelectionMode
+                        .value == true
                 )
             }
         }
     }
-
-
-
 }

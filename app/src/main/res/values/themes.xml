@@ -1,79 +1,55 @@
-<!--<resources xmlns:tools="http://schemas.android.com/tools">-->
-<!--    &lt;!&ndash; Base application theme. &ndash;&gt;-->
-<!--    <style name="Base.Theme.MyGallery" parent="Theme.Material3.DayNight.NoActionBar">-->
-<!--        &lt;!&ndash; Customize your light theme here. &ndash;&gt;-->
-<!--        &lt;!&ndash; <item name="colorPrimary">@color/my_light_primary</item> &ndash;&gt;-->
-
-<!--        <item name="colorPrimary">@color/blue_100</item>-->
-<!--        <item name="colorPrimaryVariant">@color/blue_40</item>-->
-<!--        <item name="colorSurfaceVariant">@color/blue_20</item>-->
-<!--&lt;!&ndash;        <item name="colorSurfaceTint">@color/blue_10</item>&ndash;&gt;-->
-
-
-<!--    </style>-->
-
-<!--    <style name="Theme.MyGallery" parent="Base.Theme.MyGallery" />-->
-<!--</resources>-->
-
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
     <style name="Base.Theme.MyGallery" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your light theme here. -->
-        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
-
         <item name="colorPrimary">@color/blue_100</item>
         <item name="colorPrimaryVariant">@color/blue_40</item>
         <item name="colorSurfaceVariant">@color/blue_20</item>
-        <!--        <item name="colorSurfaceTint">@color/blue_10</item>-->
-
-
     </style>
 
     <style name="Theme.MyGallery" parent="Base.Theme.MyGallery" />
 
     <!--
-        Accent color variants. Each just overrides colorPrimary/
-        colorPrimaryVariant on top of the same Base theme — everything
-        else (colorSurfaceVariant, etc.) stays shared. Applied via
-        setTheme() in MainActivity based on the user's saved choice
-        in ThemePreferences.
+        Accent color variants — hex values are inlined directly here
+        instead of referencing @color/accent_x. Since these colors are
+        the SAME in light and dark mode, this avoids needing any
+        colors.xml changes at all for this part of the feature.
     -->
 
     <style name="Theme.MyGallery.Blue" parent="Base.Theme.MyGallery" />
 
     <style name="Theme.MyGallery.Green" parent="Base.Theme.MyGallery">
-        <item name="colorPrimary">@color/accent_green</item>
-        <item name="colorPrimaryVariant">@color/accent_green_variant</item>
+        <item name="colorPrimary">#FF2ECC71</item>
+        <item name="colorPrimaryVariant">#662ECC71</item>
     </style>
 
     <style name="Theme.MyGallery.Pink" parent="Base.Theme.MyGallery">
-        <item name="colorPrimary">@color/accent_pink</item>
-        <item name="colorPrimaryVariant">@color/accent_pink_variant</item>
+        <item name="colorPrimary">#FFF0578D</item>
+        <item name="colorPrimaryVariant">#66F0578D</item>
     </style>
 
     <style name="Theme.MyGallery.Purple" parent="Base.Theme.MyGallery">
-        <item name="colorPrimary">@color/accent_purple</item>
-        <item name="colorPrimaryVariant">@color/accent_purple_variant</item>
+        <item name="colorPrimary">#FF7C3AED</item>
+        <item name="colorPrimaryVariant">#667C3AED</item>
     </style>
 
     <style name="Theme.MyGallery.Teal" parent="Base.Theme.MyGallery">
-        <item name="colorPrimary">@color/accent_teal</item>
-        <item name="colorPrimaryVariant">@color/accent_teal_variant</item>
+        <item name="colorPrimary">#FF2DD4BF</item>
+        <item name="colorPrimaryVariant">#662DD4BF</item>
     </style>
 
     <style name="Theme.MyGallery.Yellow" parent="Base.Theme.MyGallery">
-        <item name="colorPrimary">@color/accent_yellow</item>
-        <item name="colorPrimaryVariant">@color/accent_yellow_variant</item>
+        <item name="colorPrimary">#FFF2C94C</item>
+        <item name="colorPrimaryVariant">#66F2C94C</item>
     </style>
 
     <style name="Theme.MyGallery.Red" parent="Base.Theme.MyGallery">
-        <item name="colorPrimary">@color/accent_red</item>
-        <item name="colorPrimaryVariant">@color/accent_red_variant</item>
+        <item name="colorPrimary">#FFB03A2E</item>
+        <item name="colorPrimaryVariant">#66B03A2E</item>
     </style>
 
     <style name="Theme.MyGallery.Violet" parent="Base.Theme.MyGallery">
-        <item name="colorPrimary">@color/accent_violet</item>
-        <item name="colorPrimaryVariant">@color/accent_violet_variant</item>
+        <item name="colorPrimary">#FFD66EF0</item>
+        <item name="colorPrimaryVariant">#66D66EF0</item>
     </style>
 
 </resources>

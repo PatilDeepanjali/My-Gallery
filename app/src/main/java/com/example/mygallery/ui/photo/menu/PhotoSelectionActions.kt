@@ -183,9 +183,8 @@ object PhotoSelectionActions {
     ): Result<Int> {
 
         if (photos.isEmpty()) {
-
             return Result.failure(
-                Exception("No photos to copy")
+                Exception("No photos selected")
             )
         }
 
@@ -214,12 +213,15 @@ object PhotoSelectionActions {
     ): Result<Int> {
 
         if (photos.isEmpty()) {
-
             return Result.failure(
-                Exception("No photos to move")
+                Exception("No photos selected")
             )
         }
 
+        // Move starts by copying the photos.
+        // Deleting the originals remains in the ViewModel
+        // because your existing DeleteResult handles
+        // Android 10+ permissions.
         return repository.copyImages(
             context,
             photos.map { it.uri },
