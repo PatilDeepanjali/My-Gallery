@@ -12,4 +12,32 @@
     <color name="onBackground">#1A1A1A</color>
     <color name="onSurfaceVariant">#757575</color>
     <color name="surfaceVariant">#F0F0F0</color>
+
+    <!-- Theme accent colors — used by Theme.MyGallery.* variants in
+         themes.xml. accent_blue reuses the same values as blue_100/
+         blue_40 so "Blue" stays visually identical to your current
+         default theme. -->
+    <color name="accent_blue">#FF278BE3</color>
+    <color name="accent_blue_variant">#66278BE3</color>
+
+    <color name="accent_green">#FF2ECC71</color>
+    <color name="accent_green_variant">#662ECC71</color>
+
+    <color name="accent_pink">#FFF0578D</color>
+    <color name="accent_pink_variant">#66F0578D</color>
+
+    <color name="accent_purple">#FF7C3AED</color>
+    <color name="accent_purple_variant">#667C3AED</color>
+
+    <color name="accent_teal">#FF2DD4BF</color>
+    <color name="accent_teal_variant">#662DD4BF</color>
+
+    <color name="accent_yellow">#FFF2C94C</color>
+    <color name="accent_yellow_variant">#66F2C94C</color>
+
+    <color name="accent_red">#FFB03A2E</color>
+    <color name="accent_red_variant">#66B03A2E</color>
+
+    <color name="accent_violet">#FFD66EF0</color>
+    <color name="accent_violet_variant">#66D66EF0</color>
 </resources>

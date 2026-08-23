@@ -1,3 +1,20 @@
+<!--<resources xmlns:tools="http://schemas.android.com/tools">-->
+<!--    &lt;!&ndash; Base application theme. &ndash;&gt;-->
+<!--    <style name="Base.Theme.MyGallery" parent="Theme.Material3.DayNight.NoActionBar">-->
+<!--        &lt;!&ndash; Customize your light theme here. &ndash;&gt;-->
+<!--        &lt;!&ndash; <item name="colorPrimary">@color/my_light_primary</item> &ndash;&gt;-->
+
+<!--        <item name="colorPrimary">@color/blue_100</item>-->
+<!--        <item name="colorPrimaryVariant">@color/blue_40</item>-->
+<!--        <item name="colorSurfaceVariant">@color/blue_20</item>-->
+<!--&lt;!&ndash;        <item name="colorSurfaceTint">@color/blue_10</item>&ndash;&gt;-->
+
+
+<!--    </style>-->
+
+<!--    <style name="Theme.MyGallery" parent="Base.Theme.MyGallery" />-->
+<!--</resources>-->
+
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
     <style name="Base.Theme.MyGallery" parent="Theme.Material3.DayNight.NoActionBar">
@@ -7,10 +24,56 @@
         <item name="colorPrimary">@color/blue_100</item>
         <item name="colorPrimaryVariant">@color/blue_40</item>
         <item name="colorSurfaceVariant">@color/blue_20</item>
-<!--        <item name="colorSurfaceTint">@color/blue_10</item>-->
+        <!--        <item name="colorSurfaceTint">@color/blue_10</item>-->
 
 
     </style>
 
     <style name="Theme.MyGallery" parent="Base.Theme.MyGallery" />
+
+    <!--
+        Accent color variants. Each just overrides colorPrimary/
+        colorPrimaryVariant on top of the same Base theme — everything
+        else (colorSurfaceVariant, etc.) stays shared. Applied via
+        setTheme() in MainActivity based on the user's saved choice
+        in ThemePreferences.
+    -->
+
+    <style name="Theme.MyGallery.Blue" parent="Base.Theme.MyGallery" />
+
+    <style name="Theme.MyGallery.Green" parent="Base.Theme.MyGallery">
+        <item name="colorPrimary">@color/accent_green</item>
+        <item name="colorPrimaryVariant">@color/accent_green_variant</item>
+    </style>
+
+    <style name="Theme.MyGallery.Pink" parent="Base.Theme.MyGallery">
+        <item name="colorPrimary">@color/accent_pink</item>
+        <item name="colorPrimaryVariant">@color/accent_pink_variant</item>
+    </style>
+
+    <style name="Theme.MyGallery.Purple" parent="Base.Theme.MyGallery">
+        <item name="colorPrimary">@color/accent_purple</item>
+        <item name="colorPrimaryVariant">@color/accent_purple_variant</item>
+    </style>
+
+    <style name="Theme.MyGallery.Teal" parent="Base.Theme.MyGallery">
+        <item name="colorPrimary">@color/accent_teal</item>
+        <item name="colorPrimaryVariant">@color/accent_teal_variant</item>
+    </style>
+
+    <style name="Theme.MyGallery.Yellow" parent="Base.Theme.MyGallery">
+        <item name="colorPrimary">@color/accent_yellow</item>
+        <item name="colorPrimaryVariant">@color/accent_yellow_variant</item>
+    </style>
+
+    <style name="Theme.MyGallery.Red" parent="Base.Theme.MyGallery">
+        <item name="colorPrimary">@color/accent_red</item>
+        <item name="colorPrimaryVariant">@color/accent_red_variant</item>
+    </style>
+
+    <style name="Theme.MyGallery.Violet" parent="Base.Theme.MyGallery">
+        <item name="colorPrimary">@color/accent_violet</item>
+        <item name="colorPrimaryVariant">@color/accent_violet_variant</item>
+    </style>
+
 </resources>

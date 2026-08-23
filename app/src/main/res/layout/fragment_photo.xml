@@ -135,6 +135,7 @@
                 android:textSize="12sp"
                 app:cornerRadius="8dp"
                 app:strokeWidth="1dp"
+                android:textColor="@color/onBackground"
                 app:strokeColor="@color/onSurfaceVariant"
                 app:backgroundTint="@color/background" />
 
@@ -148,6 +149,7 @@
                 android:textSize="12sp"
                 app:cornerRadius="8dp"
                 app:strokeWidth="1dp"
+                android:textColor="@color/onBackground"
                 app:strokeColor="@color/onSurfaceVariant"
                 app:backgroundTint="@color/background" />
 
@@ -161,6 +163,7 @@
                 android:textSize="12sp"
                 app:cornerRadius="8dp"
                 app:strokeWidth="1dp"
+                android:textColor="@color/onBackground"
                 app:strokeColor="@color/onSurfaceVariant"
                 app:backgroundTint="@color/background" />
 
@@ -174,6 +177,7 @@
                 android:textSize="12sp"
                 app:cornerRadius="8dp"
                 app:strokeWidth="1dp"
+                android:textColor="@color/onBackground"
                 app:strokeColor="@color/onSurfaceVariant"
                 app:backgroundTint="@color/background" />
 

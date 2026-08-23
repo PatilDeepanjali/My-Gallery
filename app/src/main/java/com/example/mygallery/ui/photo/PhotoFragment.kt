@@ -48,10 +48,11 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import androidx.activity.OnBackPressedCallback
 import com.example.mygallery.model.TrashItem
+import com.example.mygallery.ui.photo.menu.PhotoMenuActions
+import com.example.mygallery.ui.photo.menu.PhotoSelectionActions
 import com.example.mygallery.utils.FavoritePreferences
 import com.example.mygallery.utils.TrashManager
 import com.example.mygallery.utils.TrashStorage
-
 
 class PhotoFragment : Fragment() {
 
@@ -83,7 +84,39 @@ class PhotoFragment : Fragment() {
 
 
     private var pendingTrashItems: List<TrashItem> = emptyList()
+    private var pendingRenamePhoto: ImageModel? = null
+    private var pendingRenameName: String? = null
 
+    private val renamePermissionLauncher =
+        registerForActivityResult(
+            ActivityResultContracts.StartIntentSenderForResult()
+        ) { result ->
+
+            if (result.resultCode == Activity.RESULT_OK) {
+
+                val photo = pendingRenamePhoto
+                val newName = pendingRenameName
+
+                if (photo != null && newName != null) {
+
+                    retryRename(
+                        photo,
+                        newName
+                    )
+                }
+
+            } else {
+
+                Toast.makeText(
+                    requireContext(),
+                    "Rename permission denied",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+
+            pendingRenamePhoto = null
+            pendingRenameName = null
+        }
 
     // ---------------------------------------------------------
     // Lifecycle
@@ -534,19 +567,8 @@ class PhotoFragment : Fragment() {
                     }
 
                     PhotoSelectionAction.DETAILS -> {
+                        showSelectedDetails()
 
-                        val selectedPhotos =
-                            viewModel.getSelectedPhotos()
-
-                        if (selectedPhotos.isNotEmpty()) {
-
-                            PhotoDetailsBottomSheet(
-                                ArrayList(selectedPhotos)
-                            ).show(
-                                childFragmentManager,
-                                "photo_details"
-                            )
-                        }
                     }
 
                     PhotoSelectionAction.OPEN_WITH -> {
@@ -566,7 +588,16 @@ class PhotoFragment : Fragment() {
         }
     }
 
+    private fun showSelectedDetails() {
 
+        val selectedPhotos =
+            viewModel.getSelectedPhotos()
+
+        PhotoMenuActions.showDetails(
+            this,
+            selectedPhotos
+        )
+    }
     /**
      * Behavior for a mixed selection (some favorited, some not):
      * if EVERY selected photo is already favorited, this removes
@@ -579,40 +610,16 @@ class PhotoFragment : Fragment() {
      */
     private fun toggleFavoriteSelected() {
 
-        val selectedPhotos = viewModel.getSelectedPhotos()
+        val selectedPhotos =
+            viewModel.getSelectedPhotos()
 
-        if (selectedPhotos.isEmpty()) {
-            Toast.makeText(requireContext(), "No photos selected", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        val allAlreadyFavorite = selectedPhotos.all {
-            FavoritePreferences.isFavorite(requireContext(), it.id)
-        }
-
-        if (allAlreadyFavorite) {
-
-            selectedPhotos.forEach {
-                FavoritePreferences.toggleFavorite(requireContext(), it.id)
-            }
-
-            Toast.makeText(requireContext(), "Removed from Favorites", Toast.LENGTH_SHORT).show()
-
-        } else {
-
-            selectedPhotos.forEach { photo ->
-                if (!FavoritePreferences.isFavorite(requireContext(), photo.id)) {
-                    FavoritePreferences.toggleFavorite(requireContext(), photo.id)
-                }
-            }
-
-            Toast.makeText(requireContext(), "Added to Favorites", Toast.LENGTH_SHORT).show()
-        }
+        PhotoSelectionActions.addToFavorites(
+            requireContext(),
+            selectedPhotos
+        )
 
         viewModel.exitSelectionMode()
     }
-
-
 
 
     // Rename
@@ -689,10 +696,55 @@ class PhotoFragment : Fragment() {
                 }
 
 
-                renamePhoto(
-                    photo,
-                    newName
-                )
+                when (
+                    val result =
+                        PhotoMenuActions.rename(
+                            requireContext(),
+                            photo,
+                            newName
+                        )
+                ) {
+
+                    is PhotoMenuActions.RenameResult.Success -> {
+
+                        Toast.makeText(
+                            requireContext(),
+                            "Renamed successfully",
+                            Toast.LENGTH_SHORT
+                        ).show()
+
+                        viewModel.loadPhotos(
+                            requireContext(),
+                            folderName,
+                            currentSortType,
+                            currentSortOrder
+                        )
+                    }
+
+                    is PhotoMenuActions.RenameResult.Error -> {
+
+                        Toast.makeText(
+                            requireContext(),
+                            result.message,
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+
+                    is PhotoMenuActions.RenameResult.NeedsPermission -> {
+
+                        pendingRenamePhoto = photo
+                        pendingRenameName = newName
+
+                        val request =
+                            IntentSenderRequest.Builder(
+                                result.intentSender
+                            ).build()
+
+                        renamePermissionLauncher.launch(
+                            request
+                        )
+                    }
+                }
 
                 dialog.dismiss()
             }
@@ -700,6 +752,61 @@ class PhotoFragment : Fragment() {
 
 
         dialog.show()
+    }
+
+    private fun retryRename(
+        photo: ImageModel,
+        newName: String
+    ) {
+
+        when (
+            val result =
+                PhotoMenuActions.rename(
+                    requireContext(),
+                    photo,
+                    newName
+                )
+        ) {
+
+            is PhotoMenuActions.RenameResult.Success -> {
+
+                Toast.makeText(
+                    requireContext(),
+                    "Renamed successfully",
+                    Toast.LENGTH_SHORT
+                ).show()
+
+                viewModel.loadPhotos(
+                    requireContext(),
+                    folderName,
+                    currentSortType,
+                    currentSortOrder
+                )
+            }
+
+            is PhotoMenuActions.RenameResult.Error -> {
+
+                Toast.makeText(
+                    requireContext(),
+                    result.message,
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+
+            is PhotoMenuActions.RenameResult.NeedsPermission -> {
+
+                // Permission was already requested.
+                // If Android asks again, launch it again.
+                val request =
+                    IntentSenderRequest.Builder(
+                        result.intentSender
+                    ).build()
+
+                renamePermissionLauncher.launch(
+                    request
+                )
+            }
+        }
     }
 
 
@@ -793,47 +900,10 @@ class PhotoFragment : Fragment() {
     private fun openPhotoWith(
         photo: ImageModel
     ) {
-
-        try {
-
-            val mimeType =
-                requireContext()
-                    .contentResolver
-                    .getType(photo.uri)
-                    ?: "image/*"
-
-
-            val intent =
-                Intent(
-                    Intent.ACTION_VIEW
-                ).apply {
-
-                    setDataAndType(
-                        photo.uri,
-                        mimeType
-                    )
-
-                    addFlags(
-                        Intent.FLAG_GRANT_READ_URI_PERMISSION
-                    )
-                }
-
-
-            startActivity(
-                Intent.createChooser(
-                    intent,
-                    "Open With"
-                )
-            )
-
-        } catch (e: Exception) {
-
-            Toast.makeText(
-                requireContext(),
-                "No app available to open this file",
-                Toast.LENGTH_SHORT
-            ).show()
-        }
+        PhotoMenuActions.openWith(
+            requireContext(),
+            photo
+        )
     }
 
     // Edit With
@@ -841,51 +911,10 @@ class PhotoFragment : Fragment() {
     private fun openPhotoForEdit(
         photo: ImageModel
     ) {
-
-        try {
-
-            val mimeType =
-                requireContext()
-                    .contentResolver
-                    .getType(photo.uri)
-                    ?: "image/*"
-
-
-            val intent =
-                Intent(
-                    Intent.ACTION_EDIT
-                ).apply {
-
-                    setDataAndType(
-                        photo.uri,
-                        mimeType
-                    )
-
-                    addFlags(
-                        Intent.FLAG_GRANT_READ_URI_PERMISSION
-                    )
-
-                    addFlags(
-                        Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-                    )
-                }
-
-
-            startActivity(
-                Intent.createChooser(
-                    intent,
-                    "Edit With"
-                )
-            )
-
-        } catch (e: Exception) {
-
-            Toast.makeText(
-                requireContext(),
-                "No editing app available",
-                Toast.LENGTH_SHORT
-            ).show()
-        }
+        PhotoMenuActions.editWith(
+            requireContext(),
+            photo
+        )
     }
 
     // Set AS Wallpaper
@@ -894,39 +923,10 @@ class PhotoFragment : Fragment() {
         photo: ImageModel
     ) {
 
-        val options = arrayOf(
-            "Set On Home Screen",
-            "Set On Lock Screen",
-            "Set On Both Screen"
+        PhotoMenuActions.showWallpaperDialog(
+            this,
+            photo
         )
-
-
-        var selectedOption = 0
-
-
-        AlertDialog.Builder(requireContext())
-            .setTitle("Set Wallpaper")
-            .setSingleChoiceItems(
-                options,
-                selectedOption
-            ) { _, which ->
-
-                selectedOption = which
-            }
-            .setNegativeButton(
-                "Cancel",
-                null
-            )
-            .setPositiveButton(
-                "Apply"
-            ) { _, _ ->
-
-                applyWallpaper(
-                    photo,
-                    selectedOption
-                )
-            }
-            .show()
     }
 
 
@@ -1133,93 +1133,10 @@ class PhotoFragment : Fragment() {
 
     private fun shareSelectedPhotos() {
 
-        val selectedIds =
-            viewModel.selectedPhotoIds.value
-                ?: emptySet()
-
-        if (selectedIds.isEmpty()) {
-            return
-        }
-
-
-        val selectedPhotos =
-            photoList.filter {
-                it.id in selectedIds
-            }
-
-        if (selectedPhotos.isEmpty()) {
-            return
-        }
-
-
-        if (selectedPhotos.size == 1) {
-
-            val photo =
-                selectedPhotos.first()
-
-            val mimeType =
-                requireContext()
-                    .contentResolver
-                    .getType(photo.uri)
-                    ?: "image/*"
-
-
-            val intent =
-                Intent(Intent.ACTION_SEND).apply {
-
-                    type = mimeType
-
-                    putExtra(
-                        Intent.EXTRA_STREAM,
-                        photo.uri
-                    )
-
-                    addFlags(
-                        Intent.FLAG_GRANT_READ_URI_PERMISSION
-                    )
-                }
-
-
-            startActivity(
-                Intent.createChooser(
-                    intent,
-                    "Share Photo"
-                )
-            )
-
-        } else {
-
-            val uris =
-                ArrayList<android.net.Uri>()
-
-            selectedPhotos.forEach { photo ->
-                uris.add(photo.uri)
-            }
-
-
-            val intent =
-                Intent(Intent.ACTION_SEND_MULTIPLE).apply {
-
-                    type = "image/*"
-
-                    putParcelableArrayListExtra(
-                        Intent.EXTRA_STREAM,
-                        uris
-                    )
-
-                    addFlags(
-                        Intent.FLAG_GRANT_READ_URI_PERMISSION
-                    )
-                }
-
-
-            startActivity(
-                Intent.createChooser(
-                    intent,
-                    "Share Photos"
-                )
-            )
-        }
+        PhotoSelectionActions.share(
+            requireContext(),
+            viewModel.getSelectedPhotos()
+        )
     }
 
 

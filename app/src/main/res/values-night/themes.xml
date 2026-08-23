@@ -1,3 +1,40 @@
+<!--<resources xmlns:tools="http://schemas.android.com/tools">-->
+<!--    &lt;!&ndash; Base application theme. &ndash;&gt;-->
+<!--    <style name="Base.Theme.MyGallery" parent="Theme.Material3.DayNight.NoActionBar">-->
+<!--        &lt;!&ndash; Customize your dark theme here. &ndash;&gt;-->
+<!--        &lt;!&ndash; <item name="colorPrimary">@color/my_dark_primary</item> &ndash;&gt;-->
+
+<!--        <item name="colorPrimary">@color/blue_100</item>-->
+<!--        <item name="colorPrimaryVariant">@color/blue_30</item>-->
+
+
+<!--        <color name="accent_blue">#FF278BE3</color>-->
+<!--        <color name="accent_blue_variant">#66278BE3</color>-->
+
+<!--        <color name="accent_green">#FF2ECC71</color>-->
+<!--        <color name="accent_green_variant">#662ECC71</color>-->
+
+<!--        <color name="accent_pink">#FFF0578D</color>-->
+<!--        <color name="accent_pink_variant">#66F0578D</color>-->
+
+<!--        <color name="accent_purple">#FF7C3AED</color>-->
+<!--        <color name="accent_purple_variant">#667C3AED</color>-->
+
+<!--        <color name="accent_teal">#FF2DD4BF</color>-->
+<!--        <color name="accent_teal_variant">#662DD4BF</color>-->
+
+<!--        <color name="accent_yellow">#FFF2C94C</color>-->
+<!--        <color name="accent_yellow_variant">#66F2C94C</color>-->
+
+<!--        <color name="accent_red">#FFB03A2E</color>-->
+<!--        <color name="accent_red_variant">#66B03A2E</color>-->
+
+<!--        <color name="accent_violet">#FFD66EF0</color>-->
+<!--        <color name="accent_violet_variant">#66D66EF0</color>-->
+
+<!--    </style>-->
+<!--</resources>-->
+
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
     <style name="Base.Theme.MyGallery" parent="Theme.Material3.DayNight.NoActionBar">
@@ -8,4 +45,49 @@
         <item name="colorPrimaryVariant">@color/blue_30</item>
 
     </style>
+
+    <!--
+        Accent color variants, night versions. Android automatically
+        picks THIS file's version of each style name (instead of the
+        values/themes.xml one) when the system is in Dark mode — same
+        resource-qualifier mechanism as colors.xml.
+    -->
+
+    <style name="Theme.MyGallery.Blue" parent="Base.Theme.MyGallery" />
+
+    <style name="Theme.MyGallery.Green" parent="Base.Theme.MyGallery">
+        <item name="colorPrimary">@color/accent_green</item>
+        <item name="colorPrimaryVariant">@color/accent_green_variant</item>
+    </style>
+
+    <style name="Theme.MyGallery.Pink" parent="Base.Theme.MyGallery">
+        <item name="colorPrimary">@color/accent_pink</item>
+        <item name="colorPrimaryVariant">@color/accent_pink_variant</item>
+    </style>
+
+    <style name="Theme.MyGallery.Purple" parent="Base.Theme.MyGallery">
+        <item name="colorPrimary">@color/accent_purple</item>
+        <item name="colorPrimaryVariant">@color/accent_purple_variant</item>
+    </style>
+
+    <style name="Theme.MyGallery.Teal" parent="Base.Theme.MyGallery">
+        <item name="colorPrimary">@color/accent_teal</item>
+        <item name="colorPrimaryVariant">@color/accent_teal_variant</item>
+    </style>
+
+    <style name="Theme.MyGallery.Yellow" parent="Base.Theme.MyGallery">
+        <item name="colorPrimary">@color/accent_yellow</item>
+        <item name="colorPrimaryVariant">@color/accent_yellow_variant</item>
+    </style>
+
+    <style name="Theme.MyGallery.Red" parent="Base.Theme.MyGallery">
+        <item name="colorPrimary">@color/accent_red</item>
+        <item name="colorPrimaryVariant">@color/accent_red_variant</item>
+    </style>
+
+    <style name="Theme.MyGallery.Violet" parent="Base.Theme.MyGallery">
+        <item name="colorPrimary">@color/accent_violet</item>
+        <item name="colorPrimaryVariant">@color/accent_violet_variant</item>
+    </style>
+
 </resources>

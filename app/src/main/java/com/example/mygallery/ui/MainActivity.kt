@@ -8,12 +8,22 @@ import com.example.mygallery.R
 import com.example.mygallery.databinding.ActivityMainBinding
 import com.example.mygallery.ui.album.AlbumFragment
 import com.example.mygallery.ui.photo.PhotoFragment
+import com.example.mygallery.utils.ThemePreferences
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
+
+        // MUST come before super.onCreate() — themes can't be swapped
+        // on a screen that's already started drawing. This applies the
+        // user's saved accent color (Blue/Green/Pink/etc.) on top of
+        // the base Theme.MyGallery declared in the manifest.
+        setTheme(
+            ThemePreferences.getThemeColor(this).styleResId
+        )
+
         super.onCreate(savedInstanceState)
 
         binding = ActivityMainBinding.inflate(layoutInflater)

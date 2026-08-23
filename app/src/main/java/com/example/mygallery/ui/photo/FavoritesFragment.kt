@@ -1,18 +1,24 @@
 package com.example.mygallery.ui.photo
 
+import android.app.AlertDialog
+import android.app.WallpaperManager
+import android.content.ContentValues
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.provider.MediaStore
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.Toast
-
 import androidx.activity.OnBackPressedCallback
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
-
 import com.example.mygallery.R
 import com.example.mygallery.adapter.PhotosAdapter
 import com.example.mygallery.databinding.FragmentFavoritesBinding
@@ -20,8 +26,12 @@ import com.example.mygallery.model.ImageModel
 import com.example.mygallery.model.PhotoListItem
 import com.example.mygallery.repository.GalleryRepository
 import com.example.mygallery.ui.MainActivity
+import com.example.mygallery.ui.album.AlbumPickerBottomSheet
+import com.example.mygallery.ui.photo.details.PhotoDetailsBottomSheet
 import com.example.mygallery.ui.photo.menu.PhotoAction
 import com.example.mygallery.ui.photo.menu.PhotoActionPopup
+import com.example.mygallery.ui.photo.menu.PhotoMenuActions
+import com.example.mygallery.ui.photo.menu.PhotoSelectionActions
 import com.example.mygallery.ui.photo.menu.SortOrder
 import com.example.mygallery.ui.photo.menu.SortType
 import com.example.mygallery.ui.photo.selection.PhotoSelectionAction
@@ -31,21 +41,7 @@ import com.example.mygallery.ui.state.PhotosUiState
 import com.example.mygallery.utils.FavoritePreferences
 import com.example.mygallery.viewmodel.PhotosViewModel
 import com.example.mygallery.viewmodel.PhotosViewModelFactory
-
-import android.app.AlertDialog
-import android.app.WallpaperManager
-import android.content.Context
-import android.os.Build
-import android.widget.EditText
-import android.widget.LinearLayout
-
-import androidx.lifecycle.lifecycleScope
-import com.example.mygallery.ui.album.AlbumPickerBottomSheet
-
-import com.example.mygallery.ui.photo.details.PhotoDetailsBottomSheet
 import kotlinx.coroutines.launch
-import android.content.ContentValues
-import android.provider.MediaStore
 
 class FavoritesFragment : Fragment() {
 
@@ -509,7 +505,7 @@ class FavoritesFragment : Fragment() {
 
                 PhotoSelectionAction.FAVORITE -> {
 
-                    unfavoriteSelected()
+                    removeSelectedFromFavorites()
                 }
 
 
@@ -927,18 +923,12 @@ class FavoritesFragment : Fragment() {
 
     private fun showSelectedDetails() {
 
-        val selected =
+        val selectedPhotos =
             viewModel.getSelectedPhotos()
 
-        if (selected.isEmpty()) {
-            return
-        }
-
-        PhotoDetailsBottomSheet(
-            ArrayList(selected)
-        ).show(
-            childFragmentManager,
-            "favorite_photo_details"
+        PhotoMenuActions.showDetails(
+            this,
+            selectedPhotos
         )
     }
 
@@ -1221,50 +1211,17 @@ class FavoritesFragment : Fragment() {
     // UNFAVORITE
     // =========================================================
 
-    private fun unfavoriteSelected() {
+    private fun removeSelectedFromFavorites() {
 
-        val selected =
+        val selectedPhotos =
             viewModel.getSelectedPhotos()
 
-
-        if (selected.isEmpty()) {
-
-            Toast.makeText(
-                requireContext(),
-                "No photos selected",
-                Toast.LENGTH_SHORT
-            ).show()
-
-            return
-        }
-
-
-        selected.forEach { photo ->
-
-            if (
-                FavoritePreferences.isFavorite(
-                    requireContext(),
-                    photo.id
-                )
-            ) {
-
-                FavoritePreferences.toggleFavorite(
-                    requireContext(),
-                    photo.id
-                )
-            }
-        }
-
-
-        Toast.makeText(
+        PhotoSelectionActions.removeFromFavorites(
             requireContext(),
-            "Removed from Favorites",
-            Toast.LENGTH_SHORT
-        ).show()
-
+            selectedPhotos
+        )
 
         viewModel.exitSelectionMode()
-
 
         viewModel.loadFavorites(
             requireContext(),
@@ -1280,104 +1237,9 @@ class FavoritesFragment : Fragment() {
 
     private fun shareSelectedPhotos() {
 
-        val selected =
+        PhotoSelectionActions.share(
+            requireContext(),
             viewModel.getSelectedPhotos()
-
-
-        if (selected.isEmpty()) {
-            return
-        }
-
-
-        // -----------------------------------------------------
-        // Single photo
-        // -----------------------------------------------------
-
-        if (selected.size == 1) {
-
-            val photo =
-                selected.first()
-
-
-            val mimeType =
-                requireContext()
-                    .contentResolver
-                    .getType(
-                        photo.uri
-                    )
-                    ?: "image/*"
-
-
-            val intent =
-                Intent(
-                    Intent.ACTION_SEND
-                ).apply {
-
-                    type =
-                        mimeType
-
-                    putExtra(
-                        Intent.EXTRA_STREAM,
-                        photo.uri
-                    )
-
-                    addFlags(
-                        Intent.FLAG_GRANT_READ_URI_PERMISSION
-                    )
-                }
-
-
-            startActivity(
-                Intent.createChooser(
-                    intent,
-                    "Share Photo"
-                )
-            )
-
-            return
-        }
-
-
-        // -----------------------------------------------------
-        // Multiple photos
-        // -----------------------------------------------------
-
-        val uris =
-            ArrayList<Uri>()
-
-
-        selected.forEach { photo ->
-
-            uris.add(
-                photo.uri
-            )
-        }
-
-
-        val intent =
-            Intent(
-                Intent.ACTION_SEND_MULTIPLE
-            ).apply {
-
-                type =
-                    "image/*"
-
-                putParcelableArrayListExtra(
-                    Intent.EXTRA_STREAM,
-                    uris
-                )
-
-                addFlags(
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION
-                )
-            }
-
-
-        startActivity(
-            Intent.createChooser(
-                intent,
-                "Share Photos"
-            )
         )
     }
 
