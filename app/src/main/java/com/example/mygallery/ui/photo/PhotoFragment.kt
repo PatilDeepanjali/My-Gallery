@@ -28,6 +28,8 @@ import com.example.mygallery.repository.GalleryRepository
 import com.example.mygallery.ui.MainActivity
 import com.example.mygallery.ui.album.AlbumPickerBottomSheet
 import com.example.mygallery.ui.photo.menu.ColumnBottomSheet
+import com.example.mygallery.ui.photo.menu.FilterBottomSheet
+import com.example.mygallery.ui.photo.menu.FilterType
 import com.example.mygallery.ui.photo.menu.LayoutStyleBottomSheet
 import com.example.mygallery.ui.photo.menu.PhotoAction
 import com.example.mygallery.ui.photo.menu.PhotoActionPopup
@@ -39,11 +41,13 @@ import com.example.mygallery.ui.photo.selection.PhotoSelectionAction
 import com.example.mygallery.ui.photo.selection.PhotoSelectionActionPopup
 import com.example.mygallery.ui.photo.slideshow.SlideShowFragment
 import com.example.mygallery.ui.state.PhotosUiState
+import com.example.mygallery.utils.FavoritePreferences
 import com.example.mygallery.utils.TrashManager
 import com.example.mygallery.utils.TrashStorage
 import com.example.mygallery.viewmodel.PhotosViewModel
 import com.example.mygallery.viewmodel.PhotosViewModelFactory
 import kotlinx.coroutines.launch
+
 
 
 class PhotoFragment : Fragment() {
@@ -63,7 +67,12 @@ class PhotoFragment : Fragment() {
     private lateinit var viewModel: PhotosViewModel
     private lateinit var photosAdapter: PhotosAdapter
 
+    private var currentFilter =
+        FilterType.ALL_ITEMS
 
+
+    private var allPhotoItems:
+            List<PhotoListItem> = emptyList()
     // ---------------------------------------------------------
     // Folder
     // ---------------------------------------------------------
@@ -521,7 +530,7 @@ class PhotoFragment : Fragment() {
 
                     PhotoAction.FILTER -> {
 
-                        // TODO: Implement filter
+                        showFilterBottomSheet()
                     }
 
 
@@ -597,6 +606,439 @@ class PhotoFragment : Fragment() {
         }
     }
 
+
+    // filter
+    // =========================================================
+// FILTER
+// =========================================================
+
+    private fun showFilterBottomSheet() {
+
+        val sheet =
+            FilterBottomSheet(
+                currentFilter
+            )
+
+
+        sheet.setListener(
+            object :
+                FilterBottomSheet.OnFilterSelected {
+
+                override fun onFilterSelected(
+                    filterType: FilterType
+                ) {
+
+                    currentFilter =
+                        filterType
+
+                    applyCurrentFilter()
+                }
+            }
+        )
+
+
+        sheet.show(
+            parentFragmentManager,
+            "photo_filter"
+        )
+    }
+
+
+    // =========================================================
+// APPLY FILTER
+// =========================================================
+
+    private fun applyCurrentFilter() {
+
+        if (allPhotoItems.isEmpty()) {
+
+            photoList.clear()
+
+            binding.recyclerPhotos.visibility =
+                View.GONE
+
+            binding.layoutEmptyState.visibility =
+                View.VISIBLE
+
+            binding.tvSubtitle.text =
+                "0 Photos"
+
+            return
+        }
+
+
+        val filteredItems =
+            when (currentFilter) {
+
+                // -------------------------------------------------
+                // ALL ITEMS
+                // -------------------------------------------------
+
+                FilterType.ALL_ITEMS -> {
+
+                    allPhotoItems
+                }
+
+
+                // -------------------------------------------------
+                // PHOTOS
+                // -------------------------------------------------
+
+                FilterType.PHOTOS -> {
+
+                    filterPhotoItems { photo ->
+
+                        photo.mimeType.startsWith(
+                            "image/",
+                            ignoreCase = true
+                        )
+                    }
+                }
+
+
+                // -------------------------------------------------
+                // VIDEOS
+                // -------------------------------------------------
+
+                FilterType.VIDEOS -> {
+
+                    filterPhotoItems { photo ->
+
+                        photo.mimeType.startsWith(
+                            "video/",
+                            ignoreCase = true
+                        )
+                    }
+                }
+
+
+                // -------------------------------------------------
+                // FAVOURITE
+                // -------------------------------------------------
+
+                FilterType.FAVOURITE -> {
+
+                    filterPhotoItems { photo ->
+
+                        FavoritePreferences.isFavorite(
+                            requireContext(),
+                            photo.id
+                        )
+                    }
+                }
+
+
+                // -------------------------------------------------
+                // SCREENSHOTS
+                // -------------------------------------------------
+
+                FilterType.SCREENSHOTS -> {
+
+                    filterPhotoItems { photo ->
+
+                        photo.name.contains(
+                            "screenshot",
+                            ignoreCase = true
+                        ) ||
+
+                                photo.folderName.contains(
+                                    "screenshot",
+                                    ignoreCase = true
+                                )
+                    }
+                }
+            }
+
+
+        renderFilteredPhotoItems(
+            filteredItems
+        )
+    }
+
+
+
+    // =========================================================
+// RENDER FILTERED PHOTO ITEMS
+// =========================================================
+
+    private fun renderFilteredPhotoItems(
+        items: List<PhotoListItem>
+    ) {
+
+        photoList.clear()
+
+
+        // -----------------------------------------------------
+        // Extract actual photos
+        // -----------------------------------------------------
+
+        items.forEach { item ->
+
+            if (
+                item is PhotoListItem.Photo
+            ) {
+
+                photoList.add(
+                    item.image
+                )
+            }
+        }
+
+
+        // -----------------------------------------------------
+        // No result
+        // -----------------------------------------------------
+
+        if (
+            photoList.isEmpty()
+        ) {
+
+            binding.recyclerPhotos.visibility =
+                View.GONE
+
+            binding.layoutEmptyState.visibility =
+                View.VISIBLE
+
+            binding.tvSubtitle.text =
+                "0 Photos"
+
+            return
+        }
+
+
+        binding.layoutEmptyState.visibility =
+            View.GONE
+
+        binding.recyclerPhotos.visibility =
+            View.VISIBLE
+
+
+        // -----------------------------------------------------
+        // Subtitle
+        // -----------------------------------------------------
+
+        binding.tvSubtitle.text =
+            "${photoList.size} Photos"
+
+
+        // -----------------------------------------------------
+        // Adapter
+        // -----------------------------------------------------
+
+        photosAdapter =
+            PhotosAdapter(
+
+                isGridView =
+                    isGridView,
+
+                items =
+                    items,
+
+
+                // -------------------------------------------------
+                // Photo click
+                // -------------------------------------------------
+
+                onPhotoClick = {
+                        photo,
+                        position ->
+
+                    val previewPhoto =
+                        PhotoPreviewFragment()
+
+
+                    previewPhoto.arguments =
+                        Bundle().apply {
+
+                            putParcelableArrayList(
+                                PhotoPreviewFragment
+                                    .ARG_IMAGE_LIST,
+
+                                photoList
+                            )
+
+
+                            putInt(
+                                PhotoPreviewFragment
+                                    .ARG_POSITION,
+
+                                position
+                            )
+                        }
+
+
+                    parentFragmentManager
+                        .beginTransaction()
+                        .replace(
+                            R.id.frameContainer,
+                            previewPhoto
+                        )
+                        .addToBackStack(
+                            null
+                        )
+                        .commit()
+                },
+
+
+                // -------------------------------------------------
+                // Long press
+                // -------------------------------------------------
+
+                onPhotoLongClick = {
+                        photo ->
+
+                    viewModel.enterSelectionMode(
+                        photo.image
+                    )
+                },
+
+
+                // -------------------------------------------------
+                // Selection
+                // -------------------------------------------------
+
+                onPhotoToggleSelect = {
+                        photo ->
+
+                    viewModel.toggleSelection(
+                        photo.image
+                    )
+                }
+            )
+
+
+        // -----------------------------------------------------
+        // Restore selection
+        // -----------------------------------------------------
+
+        photosAdapter.setSelectionState(
+
+            viewModel
+                .isSelectionMode
+                .value == true,
+
+            viewModel
+                .selectedPhotoIds
+                .value
+                ?: emptySet()
+        )
+
+
+        // -----------------------------------------------------
+        // RecyclerView
+        // -----------------------------------------------------
+
+        binding.recyclerPhotos.adapter =
+            photosAdapter
+
+
+        binding.recyclerPhotos.layoutManager =
+
+            if (isGridView) {
+
+                buildGridLayoutManager()
+
+            } else {
+
+                LinearLayoutManager(
+                    requireContext()
+                )
+            }
+
+
+        // -----------------------------------------------------
+        // Selection UI
+        // -----------------------------------------------------
+
+        updateSelectionCount(
+            viewModel
+                .selectedPhotoIds
+                .value
+                ?: emptySet()
+        )
+
+
+        updateSelectionMode(
+            viewModel
+                .isSelectionMode
+                .value == true
+        )
+    }
+
+
+    // =========================================================
+// FILTER PHOTO ITEMS
+// =========================================================
+
+    private fun filterPhotoItems(
+        predicate: (ImageModel) -> Boolean
+    ): List<PhotoListItem> {
+
+        val result =
+            mutableListOf<PhotoListItem>()
+
+
+        var pendingHeader:
+                PhotoListItem? = null
+
+
+        for (
+        item in allPhotoItems
+        ) {
+
+            when (item) {
+
+                is PhotoListItem.Photo -> {
+
+                    if (
+                        predicate(
+                            item.image
+                        )
+                    ) {
+
+                        /*
+                         * Add the date header only when
+                         * this group has a matching photo.
+                         */
+
+                        if (
+                            pendingHeader != null
+                        ) {
+
+                            result.add(
+                                pendingHeader
+                            )
+
+                            pendingHeader =
+                                null
+                        }
+
+
+                        result.add(
+                            item
+                        )
+                    }
+                }
+
+
+                else -> {
+
+                    /*
+                     * Keep the header temporarily.
+                     *
+                     * If no photo below it matches,
+                     * the header is never added.
+                     */
+
+                    pendingHeader =
+                        item
+                }
+            }
+        }
+
+
+        return result
+    }
 
     // SELECTION MENU
 
@@ -1897,9 +2339,9 @@ class PhotoFragment : Fragment() {
 
         when (state) {
 
-            // -------------------------------------------------
+            // -----------------------------------------------------
             // Loading
-            // -------------------------------------------------
+            // -----------------------------------------------------
 
             is PhotosUiState.Loading -> {
 
@@ -1908,11 +2350,14 @@ class PhotoFragment : Fragment() {
             }
 
 
-            // -------------------------------------------------
+            // -----------------------------------------------------
             // Empty
-            // -------------------------------------------------
+            // -----------------------------------------------------
 
             is PhotosUiState.Empty -> {
+
+                allPhotoItems =
+                    emptyList()
 
                 photoList.clear()
 
@@ -1930,171 +2375,17 @@ class PhotoFragment : Fragment() {
             }
 
 
-            // -------------------------------------------------
+            // -----------------------------------------------------
             // Success
-            // -------------------------------------------------
+            // -----------------------------------------------------
 
             is PhotosUiState.Success -> {
 
-                binding.recyclerPhotos.visibility =
-                    View.VISIBLE
+                allPhotoItems =
+                    state.items
 
 
-                // ---------------------------------------------
-                // Extract actual photos.
-                // DateHeader items are ignored.
-                // ---------------------------------------------
-
-                photoList.clear()
-
-
-                state.items.forEach { item ->
-
-                    if (
-                        item is PhotoListItem.Photo
-                    ) {
-
-                        photoList.add(
-                            item.image
-                        )
-                    }
-                }
-
-
-                val photoCount =
-                    photoList.size
-
-
-                binding.tvSubtitle.text =
-                    "$photoCount Photos"
-
-
-                // ---------------------------------------------
-                // Create adapter
-                // ---------------------------------------------
-
-                photosAdapter =
-                    PhotosAdapter(
-                        isGridView = isGridView,
-                        items = state.items,
-
-
-                        // Normal tap
-                        onPhotoClick = { photo,
-                                         position ->
-
-                            val previewPhoto =
-                                PhotoPreviewFragment()
-
-
-                            previewPhoto.arguments =
-                                Bundle().apply {
-
-                                    putParcelableArrayList(
-                                        PhotoPreviewFragment
-                                            .ARG_IMAGE_LIST,
-                                        photoList
-                                    )
-
-
-                                    putInt(
-                                        PhotoPreviewFragment
-                                            .ARG_POSITION,
-                                        position
-                                    )
-                                }
-
-
-                            parentFragmentManager
-                                .beginTransaction()
-                                .replace(
-                                    R.id.frameContainer,
-                                    previewPhoto
-                                )
-                                .addToBackStack(
-                                    null
-                                )
-                                .commit()
-                        },
-
-
-                        // Long press
-                        onPhotoLongClick = { photo ->
-
-                            viewModel.enterSelectionMode(
-                                photo.image
-                            )
-                        },
-
-
-                        // Tap while selecting
-                        onPhotoToggleSelect = { photo ->
-
-                            viewModel.toggleSelection(
-                                photo.image
-                            )
-                        }
-                    )
-
-
-                // ---------------------------------------------
-                // Restore selection state
-                // ---------------------------------------------
-
-                photosAdapter.setSelectionState(
-                    viewModel
-                        .isSelectionMode
-                        .value == true,
-
-                    viewModel
-                        .selectedPhotoIds
-                        .value
-                        ?: emptySet()
-                )
-
-
-                binding.recyclerPhotos.adapter =
-                    photosAdapter
-
-
-                // ---------------------------------------------
-                // Layout manager
-                // ---------------------------------------------
-
-                binding.recyclerPhotos.layoutManager =
-                    if (isGridView) {
-
-                        buildGridLayoutManager()
-
-                    } else {
-
-                        LinearLayoutManager(
-                            requireContext()
-                        )
-                    }
-
-
-                // ---------------------------------------------
-                // Update selection count
-                // ---------------------------------------------
-
-                updateSelectionCount(
-                    viewModel
-                        .selectedPhotoIds
-                        .value
-                        ?: emptySet()
-                )
-
-
-                // ---------------------------------------------
-                // Restore selection UI
-                // ---------------------------------------------
-
-                updateSelectionMode(
-                    viewModel
-                        .isSelectionMode
-                        .value == true
-                )
+                applyCurrentFilter()
             }
         }
     }

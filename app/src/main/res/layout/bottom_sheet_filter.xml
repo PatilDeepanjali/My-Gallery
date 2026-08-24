@@ -1,0 +1,432 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+
+    android:orientation="vertical"
+
+    android:padding="20dp"
+
+    android:background="@drawable/bg_bottom_sheet">
+
+
+    <!-- ===================================================== -->
+    <!-- Handle -->
+    <!-- ===================================================== -->
+
+    <View
+        android:layout_width="40dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center"
+
+        android:layout_marginBottom="20dp"
+
+        android:background="@drawable/bg_bottom_sheet_handle" />
+
+
+    <!-- ===================================================== -->
+    <!-- Title -->
+    <!-- ===================================================== -->
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+
+        android:gravity="center_vertical">
+
+
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+
+            android:src="@drawable/ic_filter"
+
+            app:tint="@color/blue_100" />
+
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+
+            android:layout_marginStart="10dp"
+
+            android:text="Filter"
+
+            android:textStyle="bold"
+            android:textSize="18sp"
+
+            android:textColor="@color/blue_100" />
+
+    </LinearLayout>
+
+
+    <!-- ===================================================== -->
+    <!-- Filter Options -->
+    <!-- ===================================================== -->
+
+    <LinearLayout
+        android:id="@+id/filterOptionsContainer"
+
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+
+        android:layout_marginTop="18dp"
+
+        android:orientation="vertical"
+
+        android:background="@drawable/bg_sheet_option">
+
+
+        <!-- ================================================= -->
+        <!-- All Items -->
+        <!-- ================================================= -->
+
+        <LinearLayout
+            android:id="@+id/filterAllItems"
+
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+
+            android:gravity="center_vertical"
+
+            android:paddingHorizontal="16dp"
+
+            android:clickable="true"
+            android:focusable="true">
+
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+
+                android:src="@drawable/ic_all_items"
+
+                app:tint="@color/onBackground" />
+
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+
+                android:layout_weight="1"
+
+                android:layout_marginStart="10dp"
+
+                android:text="All items"
+
+                android:textColor="@color/onBackground"
+                android:textSize="15sp" />
+
+
+            <ImageView
+                android:id="@+id/filterAllItemsCheck"
+
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+
+                android:src="@drawable/ic_plane_circle" />
+
+        </LinearLayout>
+
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+
+            android:background="#E8E8E8" />
+
+
+        <!-- ================================================= -->
+        <!-- Photos -->
+        <!-- ================================================= -->
+
+        <LinearLayout
+            android:id="@+id/filterPhotos"
+
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+
+            android:gravity="center_vertical"
+
+            android:paddingHorizontal="16dp"
+
+            android:clickable="true"
+            android:focusable="true">
+
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+
+                android:src="@drawable/ic_photo"
+
+                app:tint="@color/onBackground" />
+
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+
+                android:layout_weight="1"
+
+                android:layout_marginStart="10dp"
+
+                android:text="Photos"
+
+                android:textColor="@color/onBackground"
+                android:textSize="15sp" />
+
+
+            <ImageView
+                android:id="@+id/filterPhotosCheck"
+
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+
+                android:src="@drawable/ic_plane_circle" />
+
+        </LinearLayout>
+
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+
+            android:background="#E8E8E8" />
+
+
+        <!-- ================================================= -->
+        <!-- Videos -->
+        <!-- ================================================= -->
+
+        <LinearLayout
+            android:id="@+id/filterVideos"
+
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+
+            android:gravity="center_vertical"
+
+            android:paddingHorizontal="16dp"
+
+            android:clickable="true"
+            android:focusable="true">
+
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+
+                android:src="@drawable/ic_video"
+
+                app:tint="@color/onBackground" />
+
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+
+                android:layout_weight="1"
+
+                android:layout_marginStart="10dp"
+
+                android:text="Videos"
+
+                android:textColor="@color/onBackground"
+                android:textSize="15sp" />
+
+
+            <ImageView
+                android:id="@+id/filterVideosCheck"
+
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+
+                android:src="@drawable/ic_plane_circle" />
+
+        </LinearLayout>
+
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+
+            android:background="#E8E8E8" />
+
+
+        <!-- ================================================= -->
+        <!-- Favourite -->
+        <!-- ================================================= -->
+
+        <LinearLayout
+            android:id="@+id/filterFavourite"
+
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+
+            android:gravity="center_vertical"
+
+            android:paddingHorizontal="16dp"
+
+            android:clickable="true"
+            android:focusable="true">
+
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+
+                android:src="@drawable/ic_heart"
+
+                app:tint="@color/onBackground" />
+
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+
+                android:layout_weight="1"
+
+                android:layout_marginStart="10dp"
+
+                android:text="Favourite"
+
+                android:textColor="@color/onBackground"
+                android:textSize="15sp" />
+
+
+            <ImageView
+                android:id="@+id/filterFavouriteCheck"
+
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+
+                android:src="@drawable/ic_plane_circle" />
+
+        </LinearLayout>
+
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+
+            android:background="#E8E8E8" />
+
+
+        <!-- ================================================= -->
+        <!-- Screenshots -->
+        <!-- ================================================= -->
+
+        <LinearLayout
+            android:id="@+id/filterScreenshots"
+
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+
+            android:gravity="center_vertical"
+
+            android:paddingHorizontal="16dp"
+
+            android:clickable="true"
+            android:focusable="true">
+
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+
+                android:src="@drawable/ic_screenshot"
+
+                app:tint="@color/onBackground" />
+
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+
+                android:layout_weight="1"
+
+                android:layout_marginStart="10dp"
+
+                android:text="Screenshots"
+
+                android:textColor="@color/onBackground"
+                android:textSize="15sp" />
+
+
+            <ImageView
+                android:id="@+id/filterScreenshotsCheck"
+
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+
+                android:src="@drawable/ic_plane_circle" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+
+    <!-- ===================================================== -->
+    <!-- Buttons -->
+    <!-- ===================================================== -->
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+
+        android:layout_marginTop="22dp"
+
+        android:orientation="horizontal">
+
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnCancel"
+
+            android:layout_width="0dp"
+            android:layout_height="50dp"
+
+            android:layout_weight="1"
+
+            android:layout_marginEnd="8dp"
+
+            android:text="Cancel"
+            android:textAllCaps="false"
+
+            android:textColor="@color/blue_100"
+
+            app:backgroundTint="@color/background"
+
+            app:cornerRadius="14dp"
+
+            app:strokeWidth="1dp"
+
+            app:strokeColor="@color/blue_100" />
+
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnApply"
+
+            android:layout_width="0dp"
+            android:layout_height="50dp"
+
+            android:layout_weight="1"
+
+            android:layout_marginStart="8dp"
+
+            android:text="Apply"
+            android:textAllCaps="false"
+
+            android:textColor="@android:color/white"
+
+            app:backgroundTint="@color/blue_100"
+
+            app:cornerRadius="14dp" />
+
+    </LinearLayout>
+
+</LinearLayout>

@@ -9,6 +9,7 @@ import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.Toast
+
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -16,6 +17,8 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.LinearLayoutManager
+
 import com.example.mygallery.R
 import com.example.mygallery.adapter.PhotosAdapter
 import com.example.mygallery.databinding.FragmentFavoritesBinding
@@ -26,6 +29,10 @@ import com.example.mygallery.model.TrashItem
 import com.example.mygallery.repository.GalleryRepository
 import com.example.mygallery.ui.MainActivity
 import com.example.mygallery.ui.album.AlbumPickerBottomSheet
+import com.example.mygallery.ui.photo.menu.ColumnBottomSheet
+import com.example.mygallery.ui.photo.menu.FilterBottomSheet
+import com.example.mygallery.ui.photo.menu.FilterType
+import com.example.mygallery.ui.photo.menu.LayoutStyleBottomSheet
 import com.example.mygallery.ui.photo.menu.PhotoAction
 import com.example.mygallery.ui.photo.menu.PhotoActionPopup
 import com.example.mygallery.ui.photo.menu.PhotoMenuActions
@@ -42,26 +49,50 @@ import com.example.mygallery.viewmodel.PhotosViewModel
 import com.example.mygallery.viewmodel.PhotosViewModelFactory
 import kotlinx.coroutines.launch
 
-
 class FavoritesFragment : Fragment() {
 
     private var _binding: FragmentFavoritesBinding? = null
-    private val binding get() = _binding!!
+    private val binding
+        get() = _binding!!
 
     private lateinit var viewModel: PhotosViewModel
     private lateinit var photosAdapter: PhotosAdapter
 
-    // ---------------------------------------------------------
-    // Current favorite photos
-    // ---------------------------------------------------------
+
+    // =========================================================
+    // FILTER
+    // =========================================================
+
+    private var currentFilter =
+        FilterType.ALL_ITEMS
+
+    private var allFavoriteItems:
+            List<PhotoListItem> = emptyList()
+
+
+    // =========================================================
+    // CURRENT FAVORITE PHOTOS
+    // =========================================================
 
     private val photoList =
         ArrayList<ImageModel>()
 
 
-    // ---------------------------------------------------------
-    // Sort
-    // ---------------------------------------------------------
+    // =========================================================
+    // LAYOUT
+    // Same behavior as PhotoFragment
+    // =========================================================
+
+    private var isGridView =
+        true
+
+    private var gridSpanCount =
+        4
+
+
+    // =========================================================
+    // SORT
+    // =========================================================
 
     private var currentSortType =
         SortType.DATE_TAKEN
@@ -70,9 +101,9 @@ class FavoritesFragment : Fragment() {
         SortOrder.DESCENDING
 
 
-    // ---------------------------------------------------------
-    // Trash state
-    // ---------------------------------------------------------
+    // =========================================================
+    // TRASH STATE
+    // =========================================================
 
     private var pendingTrashItems:
             List<TrashItem> = emptyList()
@@ -84,9 +115,9 @@ class FavoritesFragment : Fragment() {
         "Moved to Trash"
 
 
-    // ---------------------------------------------------------
-    // Rename state
-    // ---------------------------------------------------------
+    // =========================================================
+    // RENAME STATE
+    // =========================================================
 
     private var pendingRenamePhoto:
             ImageModel? = null
@@ -95,9 +126,9 @@ class FavoritesFragment : Fragment() {
             String? = null
 
 
-  
+    // =========================================================
     // RENAME PERMISSION
-  
+    // =========================================================
 
     private val renamePermissionLauncher =
         registerForActivityResult(
@@ -140,9 +171,9 @@ class FavoritesFragment : Fragment() {
         }
 
 
-  
+    // =========================================================
     // DELETE / TRASH PERMISSION
-  
+    // =========================================================
 
     private val deleteIntentSenderLauncher =
         registerForActivityResult(
@@ -160,7 +191,9 @@ class FavoritesFragment : Fragment() {
                 pendingDeleteRetryUris =
                     null
 
-                if (retryUris != null) {
+                if (
+                    retryUris != null
+                ) {
 
                     viewModel.deleteImages(
                         requireContext(),
@@ -196,9 +229,9 @@ class FavoritesFragment : Fragment() {
         }
 
 
-  
+    // =========================================================
     // CREATE
-  
+    // =========================================================
 
     override fun onCreate(
         savedInstanceState: Bundle?
@@ -224,9 +257,9 @@ class FavoritesFragment : Fragment() {
     }
 
 
-  
+    // =========================================================
     // CREATE VIEW
-  
+    // =========================================================
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -245,9 +278,9 @@ class FavoritesFragment : Fragment() {
     }
 
 
-  
+    // =========================================================
     // VIEW CREATED
-  
+    // =========================================================
 
     override fun onViewCreated(
         view: View,
@@ -318,9 +351,9 @@ class FavoritesFragment : Fragment() {
     }
 
 
-  
+    // =========================================================
     // RESUME
-  
+    // =========================================================
 
     override fun onResume() {
 
@@ -361,9 +394,9 @@ class FavoritesFragment : Fragment() {
     }
 
 
-  
+    // =========================================================
     // BASIC VIEWS
-  
+    // =========================================================
 
     private fun setupBasicViews() {
 
@@ -372,12 +405,16 @@ class FavoritesFragment : Fragment() {
             parentFragmentManager
                 .popBackStack()
         }
+
+
+        binding.recyclerFavorites.layoutManager =
+            buildGridLayoutManager()
     }
 
 
-  
+    // =========================================================
     // NORMAL MENU
-  
+    // =========================================================
 
     private fun setupNormalMenu() {
 
@@ -411,6 +448,36 @@ class FavoritesFragment : Fragment() {
 
 
                     // -------------------------------------------------
+                    // FILTER
+                    // -------------------------------------------------
+
+                    PhotoAction.FILTER -> {
+
+                        showFilterBottomSheet()
+                    }
+
+
+                    // -------------------------------------------------
+                    // LAYOUT STYLE
+                    // -------------------------------------------------
+
+                    PhotoAction.LAYOUT_STYLE -> {
+
+                        showLayoutStyleBottomSheet()
+                    }
+
+
+                    // -------------------------------------------------
+                    // COLUMN
+                    // -------------------------------------------------
+
+                    PhotoAction.COLUMN -> {
+
+                        showColumnBottomSheet()
+                    }
+
+
+                    // -------------------------------------------------
                     // SLIDE SHOW
                     // -------------------------------------------------
 
@@ -424,23 +491,12 @@ class FavoritesFragment : Fragment() {
 
 
                     // -------------------------------------------------
-                    // Not applicable to Favorites
+                    // PIN
                     // -------------------------------------------------
 
                     PhotoAction.PIN -> {
-                        // Not applicable
-                    }
 
-                    PhotoAction.FILTER -> {
-                        // Not applicable
-                    }
-
-                    PhotoAction.LAYOUT_STYLE -> {
-                        // Favorites keeps the designed grid
-                    }
-
-                    PhotoAction.COLUMN -> {
-                        // Favorites keeps the designed grid
+                        // Not applicable to Favorites
                     }
                 }
             }
@@ -448,9 +504,9 @@ class FavoritesFragment : Fragment() {
     }
 
 
-  
+    // =========================================================
     // SORT
-  
+    // =========================================================
 
     private fun showSortBottomSheet() {
 
@@ -497,9 +553,341 @@ class FavoritesFragment : Fragment() {
     }
 
 
-  
+    // =========================================================
+    // FILTER
+    // =========================================================
+
+    private fun showFilterBottomSheet() {
+
+        val sheet =
+            FilterBottomSheet(
+                currentFilter
+            )
+
+
+        sheet.setListener(
+            object :
+                FilterBottomSheet.OnFilterSelected {
+
+                override fun onFilterSelected(
+                    filterType: FilterType
+                ) {
+
+                    currentFilter =
+                        filterType
+
+                    applyCurrentFilter()
+                }
+            }
+        )
+
+
+        sheet.show(
+            parentFragmentManager,
+            "favorites_filter"
+        )
+    }
+
+
+    // =========================================================
+    // APPLY FILTER
+    // =========================================================
+
+    private fun applyCurrentFilter() {
+
+        if (
+            allFavoriteItems.isEmpty()
+        ) {
+
+            photoList.clear()
+
+            binding.recyclerFavorites.visibility =
+                View.GONE
+
+            binding.layoutEmptyState.visibility =
+                View.VISIBLE
+
+            binding.tvSubtitle.text =
+                "0 Photos"
+
+            return
+        }
+
+
+        val filteredItems =
+            when (currentFilter) {
+
+                // ---------------------------------------------
+                // All items
+                // ---------------------------------------------
+
+                FilterType.ALL_ITEMS,
+                FilterType.FAVOURITE -> {
+
+                    allFavoriteItems
+                }
+
+
+                // ---------------------------------------------
+                // Photos
+                // ---------------------------------------------
+
+                FilterType.PHOTOS -> {
+
+                    filterFavoriteItems { photo ->
+
+                        photo.mimeType.startsWith(
+                            "image/",
+                            ignoreCase = true
+                        )
+                    }
+                }
+
+
+                // ---------------------------------------------
+                // Videos
+                // ---------------------------------------------
+
+                FilterType.VIDEOS -> {
+
+                    filterFavoriteItems { photo ->
+
+                        photo.mimeType.startsWith(
+                            "video/",
+                            ignoreCase = true
+                        )
+                    }
+                }
+
+
+                // ---------------------------------------------
+                // Screenshots
+                // ---------------------------------------------
+
+                FilterType.SCREENSHOTS -> {
+
+                    filterFavoriteItems { photo ->
+
+                        photo.name.contains(
+                            "screenshot",
+                            ignoreCase = true
+                        ) ||
+
+                                photo.folderName.contains(
+                                    "screenshot",
+                                    ignoreCase = true
+                                )
+                    }
+                }
+            }
+
+
+        renderFavoriteItems(
+            filteredItems
+        )
+    }
+
+
+    // =========================================================
+    // FILTER DATE HEADERS
+    // =========================================================
+
+    private fun filterFavoriteItems(
+        predicate: (ImageModel) -> Boolean
+    ): List<PhotoListItem> {
+
+        val result =
+            mutableListOf<PhotoListItem>()
+
+
+        var pendingHeader:
+                PhotoListItem? = null
+
+
+        for (
+        item in allFavoriteItems
+        ) {
+
+            when (item) {
+
+                is PhotoListItem.Photo -> {
+
+                    if (
+                        predicate(
+                            item.image
+                        )
+                    ) {
+
+                        if (
+                            pendingHeader != null
+                        ) {
+
+                            result.add(
+                                pendingHeader
+                            )
+
+                            pendingHeader =
+                                null
+                        }
+
+
+                        result.add(
+                            item
+                        )
+                    }
+                }
+
+
+                else -> {
+
+                    pendingHeader =
+                        item
+                }
+            }
+        }
+
+
+        return result
+    }
+
+
+    // =========================================================
+    // LAYOUT STYLE
+    // =========================================================
+
+    private fun showLayoutStyleBottomSheet() {
+
+        val sheet =
+            LayoutStyleBottomSheet(
+                isGridView
+            )
+
+
+        sheet.setListener(
+            object :
+                LayoutStyleBottomSheet
+                .OnLayoutStyleSelected {
+
+                override fun onLayoutSelected(
+                    isGrid: Boolean
+                ) {
+
+                    applyLayoutStyle(
+                        isGrid
+                    )
+                }
+            }
+        )
+
+
+        sheet.show(
+            parentFragmentManager,
+            "favorites_layout_style"
+        )
+    }
+
+
+    // =========================================================
+    // APPLY LAYOUT STYLE
+    // Same behavior as PhotoFragment
+    // =========================================================
+
+    private fun applyLayoutStyle(
+        isGrid: Boolean
+    ) {
+
+        isGridView =
+            isGrid
+
+
+        if (
+            ::photosAdapter.isInitialized
+        ) {
+
+            photosAdapter.setViewMode(
+                isGrid
+            )
+
+
+            binding.recyclerFavorites.layoutManager =
+
+                if (isGrid) {
+
+                    buildGridLayoutManager()
+
+                } else {
+
+                    LinearLayoutManager(
+                        requireContext()
+                    )
+                }
+        }
+    }
+
+
+    // =========================================================
+    // COLUMN
+    // =========================================================
+
+    private fun showColumnBottomSheet() {
+
+        val sheet =
+            ColumnBottomSheet(
+                gridSpanCount
+            )
+
+
+        sheet.setListener(
+            object :
+                ColumnBottomSheet
+                .OnColumnSelected {
+
+                override fun onColumnSelected(
+                    column: Int
+                ) {
+
+                    applyColumn(
+                        column
+                    )
+                }
+            }
+        )
+
+
+        sheet.show(
+            parentFragmentManager,
+            "favorites_column"
+        )
+    }
+
+
+    // =========================================================
+    // APPLY COLUMN
+    // Same behavior as PhotoFragment
+    // =========================================================
+
+    private fun applyColumn(
+        column: Int
+    ) {
+
+        gridSpanCount =
+            column
+
+
+        if (
+            isGridView &&
+            ::photosAdapter.isInitialized
+        ) {
+
+            binding.recyclerFavorites.layoutManager =
+                buildGridLayoutManager()
+        }
+    }
+
+
+    // =========================================================
     // SELECTION HEADER
-  
+    // =========================================================
 
     private fun setupSelectionHeader() {
 
@@ -516,13 +904,15 @@ class FavoritesFragment : Fragment() {
     }
 
 
-  
+    // =========================================================
     // ENTER SELECTION
-  
+    // =========================================================
 
     private fun enterSelectionMode() {
 
-        if (photoList.isEmpty()) {
+        if (
+            photoList.isEmpty()
+        ) {
 
             Toast.makeText(
                 requireContext(),
@@ -534,23 +924,15 @@ class FavoritesFragment : Fragment() {
         }
 
 
-        /*
-         * Keep the same selection behavior as PhotoFragment:
-         * entering selection mode selects the first photo.
-         *
-         * Long press on a photo still selects the exact
-         * photo that was long pressed.
-         */
-
         viewModel.enterSelectionMode(
             photoList.first()
         )
     }
 
 
-  
+    // =========================================================
     // SELECTION MENU
-  
+    // =========================================================
 
     private fun showSelectionMenu() {
 
@@ -562,7 +944,9 @@ class FavoritesFragment : Fragment() {
                 ?: 0
 
 
-        if (selectedCount == 0) {
+        if (
+            selectedCount == 0
+        ) {
             return
         }
 
@@ -609,6 +993,7 @@ class FavoritesFragment : Fragment() {
                         viewModel
                             .getSelectedPhotos()
 
+
                     if (
                         selectedPhotos.size == 1
                     ) {
@@ -648,6 +1033,7 @@ class FavoritesFragment : Fragment() {
                         viewModel
                             .getSelectedPhotos()
 
+
                     if (
                         selectedPhotos.isNotEmpty()
                     ) {
@@ -669,6 +1055,7 @@ class FavoritesFragment : Fragment() {
                     val selectedPhotos =
                         viewModel
                             .getSelectedPhotos()
+
 
                     if (
                         selectedPhotos.size == 1
@@ -698,6 +1085,7 @@ class FavoritesFragment : Fragment() {
                     val selectedPhotos =
                         viewModel
                             .getSelectedPhotos()
+
 
                     if (
                         selectedPhotos.size == 1
@@ -758,6 +1146,7 @@ class FavoritesFragment : Fragment() {
                         viewModel
                             .getSelectedPhotos()
 
+
                     if (
                         selectedPhotos.size == 1
                     ) {
@@ -780,18 +1169,22 @@ class FavoritesFragment : Fragment() {
     }
 
 
-  
+    // =========================================================
     // DETAILS
-  
+    // =========================================================
 
     private fun showSelectedDetails() {
 
         val selectedPhotos =
             viewModel.getSelectedPhotos()
 
-        if (selectedPhotos.isEmpty()) {
+
+        if (
+            selectedPhotos.isEmpty()
+        ) {
             return
         }
+
 
         PhotoMenuActions.showDetails(
             this,
@@ -800,9 +1193,9 @@ class FavoritesFragment : Fragment() {
     }
 
 
-  
+    // =========================================================
     // RENAME
-  
+    // =========================================================
 
     private fun showRenameDialog(
         photo: ImageModel
@@ -894,14 +1287,15 @@ class FavoritesFragment : Fragment() {
                 }
 
 
-                when (
-                    val result =
-                        PhotoMenuActions.rename(
-                            requireContext(),
-                            photo,
-                            newName
-                        )
-                ) {
+                val result =
+                    PhotoMenuActions.rename(
+                        requireContext(),
+                        photo,
+                        newName
+                    )
+
+
+                when (result) {
 
                     is PhotoMenuActions
                     .RenameResult.Success -> {
@@ -957,17 +1351,8 @@ class FavoritesFragment : Fragment() {
                 }
 
 
-                /*
-                 * Don't dismiss if permission is required.
-                 * The permission dialog is launched from here.
-                 */
-
                 if (
-                    PhotoMenuActions.rename(
-                        requireContext(),
-                        photo,
-                        newName
-                    ) !is PhotoMenuActions
+                    result !is PhotoMenuActions
                     .RenameResult.NeedsPermission
                 ) {
 
@@ -1033,6 +1418,7 @@ class FavoritesFragment : Fragment() {
                         result.intentSender
                     ).build()
 
+
                 renamePermissionLauncher
                     .launch(
                         request
@@ -1042,9 +1428,9 @@ class FavoritesFragment : Fragment() {
     }
 
 
-  
+    // =========================================================
     // OPEN WITH
-  
+    // =========================================================
 
     private fun openPhotoWith(
         photo: ImageModel
@@ -1057,9 +1443,9 @@ class FavoritesFragment : Fragment() {
     }
 
 
-  
+    // =========================================================
     // EDIT WITH
-  
+    // =========================================================
 
     private fun openPhotoForEdit(
         photo: ImageModel
@@ -1072,9 +1458,9 @@ class FavoritesFragment : Fragment() {
     }
 
 
-  
+    // =========================================================
     // WALLPAPER
-  
+    // =========================================================
 
     private fun showWallpaperDialog(
         photo: ImageModel
@@ -1087,19 +1473,13 @@ class FavoritesFragment : Fragment() {
     }
 
 
-  
+    // =========================================================
     // COPY / MOVE ALBUM PICKER
-  
+    // =========================================================
 
     private fun showPhotoAlbumPicker(
         mode: AlbumPickerBottomSheet.Mode
     ) {
-
-        /*
-         * Get the selection once.
-         * The selected list is then passed through the
-         * rest of the operation.
-         */
 
         val selectedPhotos =
             viewModel.getSelectedPhotos()
@@ -1164,21 +1544,14 @@ class FavoritesFragment : Fragment() {
     }
 
 
-  
+    // =========================================================
     // COPY
-  
+    // =========================================================
 
     private fun performPhotoCopy(
         photos: List<ImageModel>,
         destinationAlbumName: String
     ) {
-
-        /*
-         * Do NOT call getSelectedPhotos() again.
-         *
-         * The selected list was already captured when
-         * the album picker was opened.
-         */
 
         if (
             photos.isEmpty()
@@ -1187,66 +1560,63 @@ class FavoritesFragment : Fragment() {
         }
 
 
-        viewLifecycleOwner.lifecycleScope.launch {
+        viewLifecycleOwner
+            .lifecycleScope
+            .launch {
 
-            val result =
-                PhotoSelectionActions.copy(
-                    requireContext(),
-                    viewModel.repository,
-                    photos,
-                    destinationAlbumName
-                )
-
-
-            if (
-                result.isSuccess
-            ) {
-
-                val copiedCount =
-                    result.getOrNull()
-                        ?: 0
+                val result =
+                    PhotoSelectionActions.copy(
+                        requireContext(),
+                        viewModel.repository,
+                        photos,
+                        destinationAlbumName
+                    )
 
 
-                Toast.makeText(
-                    requireContext(),
-                    "Copied $copiedCount item(s) to $destinationAlbumName",
-                    Toast.LENGTH_SHORT
-                ).show()
+                if (
+                    result.isSuccess
+                ) {
+
+                    val copiedCount =
+                        result.getOrNull()
+                            ?: 0
 
 
-                viewModel.exitSelectionMode()
+                    Toast.makeText(
+                        requireContext(),
+                        "Copied $copiedCount item(s) to $destinationAlbumName",
+                        Toast.LENGTH_SHORT
+                    ).show()
 
 
-                /*
-                 * Favorites must reload Favorites,
-                 * not Photos.
-                 */
+                    viewModel.exitSelectionMode()
 
-                viewModel.loadFavorites(
-                    requireContext(),
-                    currentSortType,
-                    currentSortOrder
-                )
 
-            } else {
+                    viewModel.loadFavorites(
+                        requireContext(),
+                        currentSortType,
+                        currentSortOrder
+                    )
 
-                Toast.makeText(
-                    requireContext(),
-                    "Copy failed: ${
-                        result
-                            .exceptionOrNull()
-                            ?.message
-                    }",
-                    Toast.LENGTH_SHORT
-                ).show()
+                } else {
+
+                    Toast.makeText(
+                        requireContext(),
+                        "Copy failed: ${
+                            result
+                                .exceptionOrNull()
+                                ?.message
+                        }",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             }
-        }
     }
 
 
-  
+    // =========================================================
     // MOVE
-  
+    // =========================================================
 
     private fun performPhotoMove(
         photos: List<ImageModel>,
@@ -1266,61 +1636,54 @@ class FavoritesFragment : Fragment() {
             }
 
 
-        viewLifecycleOwner.lifecycleScope.launch {
+        viewLifecycleOwner
+            .lifecycleScope
+            .launch {
 
-            /*
-             * First copy the photos to the destination.
-             */
+                val copyResult =
+                    PhotoSelectionActions.move(
+                        requireContext(),
+                        viewModel.repository,
+                        photos,
+                        destinationAlbumName
+                    )
 
-            val copyResult =
-                PhotoSelectionActions.move(
+
+                if (
+                    !copyResult.isSuccess
+                ) {
+
+                    Toast.makeText(
+                        requireContext(),
+                        "Move failed: ${
+                            copyResult
+                                .exceptionOrNull()
+                                ?.message
+                        }",
+                        Toast.LENGTH_LONG
+                    ).show()
+
+                    return@launch
+                }
+
+
+                viewModel.deleteImages(
                     requireContext(),
-                    viewModel.repository,
-                    photos,
-                    destinationAlbumName
-                )
+                    uris
+                ) { deleteResult ->
 
-
-            if (
-                !copyResult.isSuccess
-            ) {
-
-                Toast.makeText(
-                    requireContext(),
-                    "Move failed: ${
-                        copyResult
-                            .exceptionOrNull()
-                            ?.message
-                    }",
-                    Toast.LENGTH_LONG
-                ).show()
-
-                return@launch
+                    handleDeleteResult(
+                        deleteResult,
+                        "Moved to $destinationAlbumName"
+                    )
+                }
             }
-
-
-            /*
-             * Only delete the originals after the copy
-             * succeeds.
-             */
-
-            viewModel.deleteImages(
-                requireContext(),
-                uris
-            ) { deleteResult ->
-
-                handleDeleteResult(
-                    deleteResult,
-                    "Moved to $destinationAlbumName"
-                )
-            }
-        }
     }
 
 
-  
+    // =========================================================
     // REMOVE FROM FAVORITES
-  
+    // =========================================================
 
     private fun removeSelectedFromFavorites() {
 
@@ -1352,9 +1715,9 @@ class FavoritesFragment : Fragment() {
     }
 
 
-  
+    // =========================================================
     // SHARE
-  
+    // =========================================================
 
     private fun shareSelectedPhotos() {
 
@@ -1376,9 +1739,9 @@ class FavoritesFragment : Fragment() {
     }
 
 
-  
-    // DELETE → CUSTOM TRASH
-  
+    // =========================================================
+    // DELETE → TRASH
+    // =========================================================
 
     private fun confirmAndMoveToTrash() {
 
@@ -1451,12 +1814,6 @@ class FavoritesFragment : Fragment() {
             }
 
 
-            /*
-             * Trash copy has been created.
-             *
-             * Now delete the original MediaStore items.
-             */
-
             pendingTrashItems =
                 TrashStorage
                     .getAll(
@@ -1494,9 +1851,9 @@ class FavoritesFragment : Fragment() {
     }
 
 
-  
+    // =========================================================
     // DELETE RESULT
-  
+    // =========================================================
 
     private fun handleDeleteResult(
         result: DeleteResult,
@@ -1505,10 +1862,6 @@ class FavoritesFragment : Fragment() {
 
         when (result) {
 
-            // -------------------------------------------------
-            // SUCCESS
-            // -------------------------------------------------
-
             is DeleteResult.Success -> {
 
                 onDeleteFinished(
@@ -1516,10 +1869,6 @@ class FavoritesFragment : Fragment() {
                 )
             }
 
-
-            // -------------------------------------------------
-            // ANDROID 11+
-            // -------------------------------------------------
 
             is DeleteResult.ConfirmDelete -> {
 
@@ -1539,12 +1888,7 @@ class FavoritesFragment : Fragment() {
             }
 
 
-            // -------------------------------------------------
-            // ANDROID 10
-            // -------------------------------------------------
-
-            is DeleteResult
-            .GrantPermissionThenRetry -> {
+            is DeleteResult.GrantPermissionThenRetry -> {
 
                 pendingDeleteRetryUris =
                     result.remainingUris
@@ -1561,10 +1905,6 @@ class FavoritesFragment : Fragment() {
                     )
             }
 
-
-            // -------------------------------------------------
-            // ERROR
-            // -------------------------------------------------
 
             is DeleteResult.Error -> {
 
@@ -1584,14 +1924,6 @@ class FavoritesFragment : Fragment() {
     private fun onDeleteFinished(
         successMessage: String
     ) {
-
-        /*
-         * If this was a Trash operation, the custom Trash
-         * metadata/copy should remain.
-         *
-         * Only the original MediaStore item is deleted.
-         */
-
 
         Toast.makeText(
             requireContext(),
@@ -1631,9 +1963,9 @@ class FavoritesFragment : Fragment() {
     }
 
 
-  
+    // =========================================================
     // SLIDESHOW
-  
+    // =========================================================
 
     private fun startSlideShow(
         images: List<ImageModel>,
@@ -1674,14 +2006,14 @@ class FavoritesFragment : Fragment() {
     }
 
 
-  
+    // =========================================================
     // OBSERVERS
-  
+    // =========================================================
 
     private fun setupObservers() {
 
         // -----------------------------------------------------
-        // UI state
+        // UI State
         // -----------------------------------------------------
 
         viewModel.uiState.observe(
@@ -1695,7 +2027,7 @@ class FavoritesFragment : Fragment() {
 
 
         // -----------------------------------------------------
-        // Selection mode
+        // Selection Mode
         // -----------------------------------------------------
 
         viewModel.isSelectionMode.observe(
@@ -1713,6 +2045,7 @@ class FavoritesFragment : Fragment() {
 
                 photosAdapter.setSelectionState(
                     isSelecting,
+
                     viewModel
                         .selectedPhotoIds
                         .value
@@ -1743,6 +2076,7 @@ class FavoritesFragment : Fragment() {
                     viewModel
                         .isSelectionMode
                         .value == true,
+
                     selectedIds
                 )
             }
@@ -1750,9 +2084,9 @@ class FavoritesFragment : Fragment() {
     }
 
 
-  
+    // =========================================================
     // RENDER STATE
-  
+    // =========================================================
 
     private fun renderState(
         state: PhotosUiState
@@ -1787,6 +2121,9 @@ class FavoritesFragment : Fragment() {
 
             is PhotosUiState.Empty -> {
 
+                allFavoriteItems =
+                    emptyList()
+
                 photoList.clear()
 
 
@@ -1813,179 +2150,284 @@ class FavoritesFragment : Fragment() {
 
             is PhotosUiState.Success -> {
 
-                binding.recyclerFavorites.visibility =
-                    View.VISIBLE
+                allFavoriteItems =
+                    state.items
 
 
-                /*
-                 * Extract only actual photos.
-                 * Date headers are ignored.
-                 */
-
-                photoList.clear()
-
-
-                state.items.forEach { item ->
-
-                    if (
-                        item is PhotoListItem.Photo
-                    ) {
-
-                        photoList.add(
-                            item.image
-                        )
-                    }
-                }
-
-
-                binding.tvSubtitle.text =
-                    "${photoList.size} Photos"
-
-
-                // -------------------------------------------------
-                // Adapter
-                // -------------------------------------------------
-
-                photosAdapter =
-                    PhotosAdapter(
-                        isGridView = true,
-                        items = state.items,
-
-                        // -----------------------------------------
-                        // Normal photo click
-                        // -----------------------------------------
-
-                        onPhotoClick = {
-                                photo,
-                                _ ->
-
-                            val photoPosition =
-                                photoList.indexOf(
-                                    photo.image
-                                )
-
-
-                            if (
-                                photoPosition < 0
-                            ) {
-                                return@PhotosAdapter
-                            }
-
-
-                            val preview =
-                                PhotoPreviewFragment()
-
-
-                            preview.arguments =
-                                Bundle().apply {
-
-                                    putParcelableArrayList(
-                                        PhotoPreviewFragment
-                                            .ARG_IMAGE_LIST,
-                                        photoList
-                                    )
-
-                                    putInt(
-                                        PhotoPreviewFragment
-                                            .ARG_POSITION,
-                                        photoPosition
-                                    )
-                                }
-
-
-                            parentFragmentManager
-                                .beginTransaction()
-                                .replace(
-                                    R.id.frameContainer,
-                                    preview
-                                )
-                                .addToBackStack(
-                                    "favorite_preview"
-                                )
-                                .commit()
-                        },
-
-
-                        // -----------------------------------------
-                        // Long press
-                        // -----------------------------------------
-
-                        onPhotoLongClick = {
-                                photo ->
-
-                            viewModel.enterSelectionMode(
-                                photo.image
-                            )
-                        },
-
-
-                        // -----------------------------------------
-                        // Tap while selecting
-                        // -----------------------------------------
-
-                        onPhotoToggleSelect = {
-                                photo ->
-
-                            viewModel.toggleSelection(
-                                photo.image
-                            )
-                        }
-                    )
-
-
-                // -------------------------------------------------
-                // Restore selection
-                // -------------------------------------------------
-
-                photosAdapter.setSelectionState(
-                    viewModel
-                        .isSelectionMode
-                        .value == true,
-
-                    viewModel
-                        .selectedPhotoIds
-                        .value
-                        ?: emptySet()
-                )
-
-
-                // -------------------------------------------------
-                // RecyclerView
-                // -------------------------------------------------
-
-                binding.recyclerFavorites.adapter =
-                    photosAdapter
-
-
-                binding.recyclerFavorites.layoutManager =
-                    buildGridLayoutManager()
-
-
-                // -------------------------------------------------
-                // Header
-                // -------------------------------------------------
-
-                updateSelectionCount(
-                    viewModel
-                        .selectedPhotoIds
-                        .value
-                        ?: emptySet()
-                )
-
-
-                updateSelectionMode(
-                    viewModel
-                        .isSelectionMode
-                        .value == true
-                )
+                applyCurrentFilter()
             }
         }
     }
 
 
-  
+    // =========================================================
+    // RENDER FILTERED FAVORITES
+    // =========================================================
+
+    private fun renderFavoriteItems(
+        items: List<PhotoListItem>
+    ) {
+
+        photoList.clear()
+
+
+        items.forEach { item ->
+
+            if (
+                item is PhotoListItem.Photo
+            ) {
+
+                photoList.add(
+                    item.image
+                )
+            }
+        }
+
+
+        // -----------------------------------------------------
+        // Empty filtered result
+        // -----------------------------------------------------
+
+        if (
+            photoList.isEmpty()
+        ) {
+
+            binding.recyclerFavorites.visibility =
+                View.GONE
+
+            binding.layoutEmptyState.visibility =
+                View.VISIBLE
+
+            binding.tvSubtitle.text =
+                "0 Photos"
+
+            updateSelectionCount(
+                viewModel
+                    .selectedPhotoIds
+                    .value
+                    ?: emptySet()
+            )
+
+            return
+        }
+
+
+        binding.layoutEmptyState.visibility =
+            View.GONE
+
+        binding.recyclerFavorites.visibility =
+            View.VISIBLE
+
+
+        binding.tvSubtitle.text =
+            "${photoList.size} Photos"
+
+
+        // -----------------------------------------------------
+        // Adapter
+        // -----------------------------------------------------
+
+        photosAdapter =
+            PhotosAdapter(
+
+                isGridView =
+                    isGridView,
+
+                items =
+                    items,
+
+
+                // -------------------------------------------------
+                // Normal click
+                // -------------------------------------------------
+
+                onPhotoClick = {
+                        photo,
+                        _ ->
+
+                    val photoPosition =
+                        photoList.indexOf(
+                            photo.image
+                        )
+
+
+                    if (
+                        photoPosition < 0
+                    ) {
+                        return@PhotosAdapter
+                    }
+
+
+                    val preview =
+                        PhotoPreviewFragment()
+
+
+                    preview.arguments =
+                        Bundle().apply {
+
+                            putParcelableArrayList(
+                                PhotoPreviewFragment
+                                    .ARG_IMAGE_LIST,
+
+                                photoList
+                            )
+
+
+                            putInt(
+                                PhotoPreviewFragment
+                                    .ARG_POSITION,
+
+                                photoPosition
+                            )
+                        }
+
+
+                    parentFragmentManager
+                        .beginTransaction()
+                        .replace(
+                            R.id.frameContainer,
+                            preview
+                        )
+                        .addToBackStack(
+                            "favorite_preview"
+                        )
+                        .commit()
+                },
+
+
+                // -------------------------------------------------
+                // Long press
+                // -------------------------------------------------
+
+                onPhotoLongClick = {
+                        photo ->
+
+                    viewModel.enterSelectionMode(
+                        photo.image
+                    )
+                },
+
+
+                // -------------------------------------------------
+                // Selection toggle
+                // -------------------------------------------------
+
+                onPhotoToggleSelect = {
+                        photo ->
+
+                    viewModel.toggleSelection(
+                        photo.image
+                    )
+                }
+            )
+
+
+        // -----------------------------------------------------
+        // Restore selection
+        // -----------------------------------------------------
+
+        photosAdapter.setSelectionState(
+
+            viewModel
+                .isSelectionMode
+                .value == true,
+
+            viewModel
+                .selectedPhotoIds
+                .value
+                ?: emptySet()
+        )
+
+
+        // -----------------------------------------------------
+        // RecyclerView
+        // -----------------------------------------------------
+
+        binding.recyclerFavorites.adapter =
+            photosAdapter
+
+
+        binding.recyclerFavorites.layoutManager =
+
+            if (isGridView) {
+
+                buildGridLayoutManager()
+
+            } else {
+
+                LinearLayoutManager(
+                    requireContext()
+                )
+            }
+
+
+        // -----------------------------------------------------
+        // Selection UI
+        // -----------------------------------------------------
+
+        updateSelectionCount(
+            viewModel
+                .selectedPhotoIds
+                .value
+                ?: emptySet()
+        )
+
+
+        updateSelectionMode(
+            viewModel
+                .isSelectionMode
+                .value == true
+        )
+    }
+
+
+    // =========================================================
+    // GRID
+    // Same logic as PhotoFragment
+    // =========================================================
+
+    private fun buildGridLayoutManager():
+            GridLayoutManager {
+
+        val layoutManager =
+            GridLayoutManager(
+                requireContext(),
+                gridSpanCount
+            )
+
+
+        layoutManager.spanSizeLookup =
+            object :
+                GridLayoutManager.SpanSizeLookup() {
+
+                override fun getSpanSize(
+                    position: Int
+                ): Int {
+
+                    return if (
+                        ::photosAdapter.isInitialized
+                    ) {
+
+                        photosAdapter.getSpanSize(
+                            position,
+                            gridSpanCount
+                        )
+
+                    } else {
+
+                        1
+                    }
+                }
+            }
+
+
+        return layoutManager
+    }
+
+
+    // =========================================================
     // SELECTION UI
-  
+    // =========================================================
 
     private fun updateSelectionMode(
         isSelecting: Boolean
@@ -2035,52 +2477,9 @@ class FavoritesFragment : Fragment() {
     }
 
 
-  
-    // GRID
-  
-
-    private fun buildGridLayoutManager():
-            GridLayoutManager {
-
-        val layoutManager =
-            GridLayoutManager(
-                requireContext(),
-                4
-            )
-
-
-        layoutManager.spanSizeLookup =
-            object :
-                GridLayoutManager.SpanSizeLookup() {
-
-                override fun getSpanSize(
-                    position: Int
-                ): Int {
-
-                    return if (
-                        ::photosAdapter.isInitialized
-                    ) {
-
-                        photosAdapter.getSpanSize(
-                            position,
-                            4
-                        )
-
-                    } else {
-
-                        1
-                    }
-                }
-            }
-
-
-        return layoutManager
-    }
-
-
-  
-    // DESTROY
-
+    // =========================================================
+    // DESTROY VIEW
+    // =========================================================
 
     override fun onDestroyView() {
 

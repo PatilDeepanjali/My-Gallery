@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources> <color name="background">#121212</color>
+    <color name="onBackground">#F0F0F0</color>
+    <color name="onSurfaceVariant">#B0B0B0</color>
+    <color name="surfaceVariant">#2A2A2A</color>
+</resources>
