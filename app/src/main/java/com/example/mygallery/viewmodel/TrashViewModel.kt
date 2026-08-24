@@ -2,7 +2,6 @@ package com.example.mygallery.viewmodel
 
 import android.content.ContentValues
 import android.content.Context
-import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import androidx.lifecycle.LiveData
@@ -28,9 +27,22 @@ class TrashViewModel(
         _trashedPhotos
 
 
-    // ---------------------------------------------------------
+    // =========================================================
+    // Constants
+    // =========================================================
+
+    companion object {
+
+        private const val TRASH_DAYS = 30L
+
+        private const val MILLIS_PER_DAY =
+            24L * 60L * 60L * 1000L
+    }
+
+
+    // =========================================================
     // Load Trash
-    // ---------------------------------------------------------
+    // =========================================================
 
     fun loadTrash(
         context: Context
@@ -42,25 +54,29 @@ class TrashViewModel(
                 withContext(Dispatchers.IO) {
 
                     val allItems =
-                        TrashStorage.getAll(context)
+                        TrashStorage.getAll(
+                            context
+                        )
+
 
                     val currentTime =
                         System.currentTimeMillis()
 
-                    val thirtyDays =
-                        30L *
-                                24L *
-                                60L *
-                                60L *
-                                1000L
 
                     val expiredItems =
                         allItems.filter { item ->
 
-                            currentTime - item.trashedAt >= thirtyDays
+                            currentTime -
+                                    item.trashedAt >=
+                                    TRASH_DAYS *
+                                    MILLIS_PER_DAY
                         }
 
-                    // Permanently remove expired files
+
+                    // -------------------------------------------------
+                    // Permanently delete expired items
+                    // -------------------------------------------------
+
                     expiredItems.forEach { item ->
 
                         permanentlyDeleteSingle(
@@ -69,22 +85,28 @@ class TrashViewModel(
                         )
                     }
 
-                    // Only keep non-expired items
-                    allItems.filter { item ->
 
-                        item !in expiredItems
+                    // -------------------------------------------------
+                    // Return only active Trash items
+                    // -------------------------------------------------
+
+                    allItems.filterNot { item ->
+
+                        item in expiredItems
                     }
                 }
 
-            _trashedPhotos.value =
+
+            _trashedPhotos.postValue(
                 photos
+            )
         }
     }
 
 
-    // ---------------------------------------------------------
+    // =========================================================
     // Restore
-    // ---------------------------------------------------------
+    // =========================================================
 
     fun restoreImages(
         context: Context,
@@ -99,6 +121,7 @@ class TrashViewModel(
 
                     var count = 0
 
+
                     photos.forEach { photo ->
 
                         if (
@@ -107,21 +130,31 @@ class TrashViewModel(
                                 photo
                             )
                         ) {
+
                             count++
                         }
                     }
 
+
                     count
                 }
+
 
             onResult(
                 restoredCount
             )
 
-            loadTrash(context)
+
+            loadTrash(
+                context
+            )
         }
     }
 
+
+    // =========================================================
+    // Restore Single Image
+    // =========================================================
 
     private fun restoreSingleImage(
         context: Context,
@@ -133,7 +166,19 @@ class TrashViewModel(
                 item.trashFilePath
             )
 
-        if (!trashFile.exists()) {
+
+        if (
+            !trashFile.exists()
+        ) {
+
+            // The Trash file is missing.
+            // Remove stale metadata.
+
+            TrashStorage.remove(
+                context,
+                item.id
+            )
+
             return false
         }
 
@@ -141,23 +186,36 @@ class TrashViewModel(
         val resolver =
             context.contentResolver
 
-        val collection =
-            MediaStore.Images.Media.getContentUri(
-                MediaStore.VOLUME_EXTERNAL_PRIMARY
-            )
 
+        val collection =
+            MediaStore.Images.Media
+                .getContentUri(
+                    MediaStore.VOLUME_EXTERNAL_PRIMARY
+                )
+
+
+        // ---------------------------------------------------------
+        // Original album
+        // ---------------------------------------------------------
 
         val relativePath =
-            if (item.folderName.isBlank()) {
 
-                Environment.DIRECTORY_PICTURES
+            if (
+                item.folderName.isBlank()
+            ) {
+
+                "${Environment.DIRECTORY_PICTURES}/"
 
             } else {
 
                 "${Environment.DIRECTORY_PICTURES}/" +
-                        item.folderName
+                        "${item.folderName}/"
             }
 
+
+        // ---------------------------------------------------------
+        // Create MediaStore entry
+        // ---------------------------------------------------------
 
         val values =
             ContentValues().apply {
@@ -188,10 +246,22 @@ class TrashViewModel(
             resolver.insert(
                 collection,
                 values
-            ) ?: return false
+            )
+
+
+        if (
+            newUri == null
+        ) {
+
+            return false
+        }
 
 
         return try {
+
+            // -----------------------------------------------------
+            // Copy Trash file → MediaStore
+            // -----------------------------------------------------
 
             resolver.openOutputStream(
                 newUri
@@ -199,12 +269,20 @@ class TrashViewModel(
 
                 trashFile.inputStream().use { input ->
 
-                    input.copyTo(output)
+                    input.copyTo(
+                        output
+                    )
                 }
-            }
+
+            } ?: throw Exception(
+                "Unable to open MediaStore output stream"
+            )
 
 
-            // Make the restored image visible.
+            // -----------------------------------------------------
+            // Make image visible
+            // -----------------------------------------------------
+
             val completeValues =
                 ContentValues().apply {
 
@@ -214,6 +292,7 @@ class TrashViewModel(
                     )
                 }
 
+
             resolver.update(
                 newUri,
                 completeValues,
@@ -222,37 +301,68 @@ class TrashViewModel(
             )
 
 
-            // Remove our Trash copy.
-            trashFile.delete()
+            // -----------------------------------------------------
+            // Remove Trash copy
+            // -----------------------------------------------------
+
+            val trashDeleted =
+                trashFile.delete()
+
+
+            if (
+                !trashDeleted &&
+                trashFile.exists()
+            ) {
+
+                // We successfully restored the image,
+                // so don't fail the restore merely because
+                // cleanup failed.
+            }
+
+
+            // -----------------------------------------------------
+            // Remove metadata
+            // -----------------------------------------------------
 
             TrashStorage.remove(
                 context,
                 item.id
             )
 
+
             true
 
-        } catch (e: Exception) {
+        } catch (
+            e: Exception
+        ) {
 
-            // If restore failed, remove the partially
-            // created MediaStore item.
+            // -----------------------------------------------------
+            // Restore failed.
+            // Remove partially-created MediaStore item.
+            // -----------------------------------------------------
+
             try {
+
                 resolver.delete(
                     newUri,
                     null,
                     null
                 )
-            } catch (_: Exception) {
+
+            } catch (
+                _: Exception
+            ) {
             }
+
 
             false
         }
     }
 
 
-    // ---------------------------------------------------------
+    // =========================================================
     // Permanent Delete
-    // ---------------------------------------------------------
+    // =========================================================
 
     fun permanentlyDeleteImages(
         context: Context,
@@ -267,6 +377,7 @@ class TrashViewModel(
 
                     var count = 0
 
+
                     photos.forEach { photo ->
 
                         if (
@@ -275,21 +386,31 @@ class TrashViewModel(
                                 photo
                             )
                         ) {
+
                             count++
                         }
                     }
 
+
                     count
                 }
+
 
             onResult(
                 deletedCount
             )
 
-            loadTrash(context)
+
+            loadTrash(
+                context
+            )
         }
     }
 
+
+    // =========================================================
+    // Permanently Delete Single
+    // =========================================================
 
     private fun permanentlyDeleteSingle(
         context: Context,
@@ -303,10 +424,33 @@ class TrashViewModel(
                     item.trashFilePath
                 )
 
-            val deleted =
-                !file.exists() || file.delete()
 
-            if (deleted) {
+            // -----------------------------------------------------
+            // Delete physical Trash file
+            // -----------------------------------------------------
+
+            val deleted =
+
+                if (
+                    file.exists()
+                ) {
+
+                    file.delete()
+
+                } else {
+
+                    true
+                }
+
+
+            // -----------------------------------------------------
+            // Remove metadata only when physical cleanup
+            // succeeded.
+            // -----------------------------------------------------
+
+            if (
+                deleted
+            ) {
 
                 TrashStorage.remove(
                     context,
@@ -314,9 +458,12 @@ class TrashViewModel(
                 )
             }
 
+
             deleted
 
-        } catch (e: Exception) {
+        } catch (
+            _: Exception
+        ) {
 
             false
         }
