@@ -5,407 +5,798 @@ import android.content.ContentResolver
 import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.os.Build
-import android.os.Bundle
+import android.os.Environment
 import android.provider.MediaStore
+import android.widget.Toast
+import androidx.core.content.ContentProviderCompat.requireContext
+import androidx.core.content.ContextCompat.startActivity
 import com.example.mygallery.model.DeleteResult
 import com.example.mygallery.model.GalleryFolder
 import com.example.mygallery.model.ImageModel
 import com.example.mygallery.model.TrashItem
+import com.example.mygallery.utils.CustomAlbumPreferences
 import com.example.mygallery.utils.TrashManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+
 class GalleryRepository {
 
 
-    private fun queryImages(
+    // =========================================================
+    // MEDIA COLLECTIONS
+    // =========================================================
+
+    private val imageCollection =
+        MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+
+    private val videoCollection =
+        MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+
+
+    // =========================================================
+    // COMMON MEDIA COLUMNS
+    // =========================================================
+
+    private val idColumn =
+        MediaStore.MediaColumns._ID
+
+    private val displayNameColumn =
+        MediaStore.MediaColumns.DISPLAY_NAME
+
+    private val dateAddedColumn =
+        MediaStore.MediaColumns.DATE_ADDED
+
+    private val sizeColumn =
+        MediaStore.MediaColumns.SIZE
+
+    private val mimeTypeColumn =
+        MediaStore.MediaColumns.MIME_TYPE
+
+
+    // =========================================================
+    // GET ALL MEDIA
+    // =========================================================
+
+    private fun queryAllMedia(
         context: Context,
-        selection: String?,
-        selectionArgs: Array<String>?
+        folderName: String? = null
     ): ArrayList<ImageModel> {
 
-        val imageList = ArrayList<ImageModel>()
+        val result =
+            ArrayList<ImageModel>()
 
-        val projection = arrayOf(
-            MediaStore.Images.Media._ID,
-            MediaStore.Images.Media.DISPLAY_NAME,
-            MediaStore.Images.Media.BUCKET_DISPLAY_NAME,
-            MediaStore.Images.Media.DATE_ADDED,
-            MediaStore.Images.Media.SIZE,
-            MediaStore.Images.Media.MIME_TYPE,
-            MediaStore.Images.Media.IS_TRASHED,
+
+        queryImageMedia(
+            context = context,
+            folderName = folderName,
+            result = result
         )
 
-        val collection = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
 
-        val cursor = context.contentResolver.query(
-            collection,
+        queryVideoMedia(
+            context = context,
+            folderName = folderName,
+            result = result
+        )
+
+
+        result.sortByDescending {
+            it.dateAdded
+        }
+
+
+        return result
+    }
+
+
+    // =========================================================
+    // QUERY IMAGES
+    // =========================================================
+
+    private fun queryImageMedia(
+        context: Context,
+        folderName: String?,
+        result: MutableList<ImageModel>
+    ) {
+
+        val projection =
+            arrayOf(
+
+                idColumn,
+
+                displayNameColumn,
+
+                MediaStore.Images.ImageColumns
+                    .BUCKET_DISPLAY_NAME,
+
+                dateAddedColumn,
+
+                sizeColumn,
+
+                mimeTypeColumn
+            )
+
+
+        val selection =
+            if (
+                folderName == null
+            ) {
+
+                null
+
+            } else {
+
+                "${MediaStore.Images.ImageColumns.BUCKET_DISPLAY_NAME} = ?"
+            }
+
+
+        val selectionArgs =
+            if (
+                folderName == null
+            ) {
+
+                null
+
+            } else {
+
+                arrayOf(folderName)
+            }
+
+
+        context.contentResolver.query(
+
+            imageCollection,
+
             projection,
+
             selection,
+
             selectionArgs,
-            "${MediaStore.Images.Media.DATE_ADDED} DESC"
-        )
 
-        cursor?.use { cur ->
+            "$dateAddedColumn DESC"
 
-            val idColumn =
-                cur.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
-            val nameColumn =
-                cur.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
-            val folderColumn =
-                cur.getColumnIndexOrThrow(MediaStore.Images.Media.BUCKET_DISPLAY_NAME)
-            val dateColumn =
-                cur.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
-            val sizeColumn =
-                cur.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE)
-            val mimeColumn =
-                cur.getColumnIndexOrThrow(MediaStore.Images.Media.MIME_TYPE)
+        )?.use { cursor ->
 
-            while (cur.moveToNext()) {
+            val idIndex =
+                cursor.getColumnIndexOrThrow(
+                    idColumn
+                )
 
-                val id = cur.getLong(idColumn)
-                val name = cur.getString(nameColumn)
-                val folderName = cur.getString(folderColumn) ?: "Unknown"
-                val dateAdded = cur.getLong(dateColumn)
-                val size = cur.getLong(sizeColumn)
-                val mimeType = cur.getString(mimeColumn) ?: ""
 
-                val imageUri = ContentUris.withAppendedId(collection, id)
+            val nameIndex =
+                cursor.getColumnIndexOrThrow(
+                    displayNameColumn
+                )
 
-                imageList.add(
+
+            val folderIndex =
+                cursor.getColumnIndexOrThrow(
+                    MediaStore.Images.ImageColumns
+                        .BUCKET_DISPLAY_NAME
+                )
+
+
+            val dateIndex =
+                cursor.getColumnIndexOrThrow(
+                    dateAddedColumn
+                )
+
+
+            val sizeIndex =
+                cursor.getColumnIndexOrThrow(
+                    sizeColumn
+                )
+
+
+            val mimeIndex =
+                cursor.getColumnIndexOrThrow(
+                    mimeTypeColumn
+                )
+
+
+            while (
+                cursor.moveToNext()
+            ) {
+
+                val id =
+                    cursor.getLong(
+                        idIndex
+                    )
+
+
+                val name =
+                    cursor.getString(
+                        nameIndex
+                    )
+
+
+                val folder =
+                    cursor.getString(
+                        folderIndex
+                    ) ?: "Unknown"
+
+
+                val dateAdded =
+                    cursor.getLong(
+                        dateIndex
+                    )
+
+
+                val size =
+                    cursor.getLong(
+                        sizeIndex
+                    )
+
+
+                val mimeType =
+                    cursor.getString(
+                        mimeIndex
+                    ) ?: "image/*"
+
+
+                val uri =
+                    ContentUris.withAppendedId(
+                        imageCollection,
+                        id
+                    )
+
+
+                result.add(
+
                     ImageModel(
+
                         id = id,
+
                         name = name,
-                        uri = imageUri,
-                        folderName = folderName,
+
+                        uri = uri,
+
+                        folderName = folder,
+
                         dateAdded = dateAdded,
+
                         size = size,
+
                         mimeType = mimeType
                     )
                 )
             }
         }
-
-        return imageList
-    }
-
-    suspend fun getAllFolders(context: Context): ArrayList<GalleryFolder> {
-
-        return withContext(Dispatchers.IO) {
-
-            val allImages = queryImages(context, selection = null, selectionArgs = null)
-            val folderList = ArrayList<GalleryFolder>()
-
-            for (image in allImages) {
-
-                var folder = folderList.find { f -> f.folderName == image.folderName }
-
-                if (folder == null) {
-                    folder = GalleryFolder(
-                        folderName = image.folderName,
-                        coverImage = image.uri,
-                        imageList = arrayListOf()
-                    )
-                    folderList.add(folder)
-                }
-
-                folder.imageList.add(image)
-            }
-
-            folderList
-        }
     }
 
 
-    suspend fun getImages(context: Context, folderName: String?): ArrayList<ImageModel> {
+    // =========================================================
+    // QUERY VIDEOS
+    // =========================================================
 
-        return withContext(Dispatchers.IO) {
+    private fun queryVideoMedia(
+        context: Context,
+        folderName: String?,
+        result: MutableList<ImageModel>
+    ) {
 
-            if (folderName == null) {
-                queryImages(context, selection = null, selectionArgs = null)
-            } else {
-                val selection = "${MediaStore.Images.Media.BUCKET_DISPLAY_NAME} = ?"
-                val selectionArgs = arrayOf(folderName)
-                queryImages(context, selection, selectionArgs)
-            }
-        }
-    }
+        val projection =
+            arrayOf(
 
+                idColumn,
 
-    suspend fun getTrashedImages(
-        context: Context
-    ): ArrayList<ImageModel> {
+                displayNameColumn,
 
-        return withContext(Dispatchers.IO) {
+                MediaStore.Video.VideoColumns
+                    .BUCKET_DISPLAY_NAME,
 
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-                return@withContext ArrayList()
-            }
+                dateAddedColumn,
 
-            val imageList = ArrayList<ImageModel>()
+                sizeColumn,
 
-            val projection = arrayOf(
-                MediaStore.Images.Media._ID,
-                MediaStore.Images.Media.DISPLAY_NAME,
-                MediaStore.Images.Media.BUCKET_DISPLAY_NAME,
-                MediaStore.Images.Media.DATE_ADDED,
-                MediaStore.Images.Media.SIZE,
-                MediaStore.Images.Media.MIME_TYPE,
-                MediaStore.Images.Media.IS_TRASHED
+                mimeTypeColumn
             )
 
-            val collection =
-                MediaStore.Images.Media.EXTERNAL_CONTENT_URI
 
-            val queryArgs = Bundle().apply {
+        val selection =
+            if (
+                folderName == null
+            ) {
 
-                putInt(
-                    MediaStore.QUERY_ARG_MATCH_TRASHED,
-                    MediaStore.MATCH_ONLY
-                )
-
-                putString(
-                    ContentResolver.QUERY_ARG_SQL_SELECTION,
-                    "${MediaStore.Images.Media.IS_TRASHED} = 1"
-                )
-            }
-
-            context.contentResolver.query(
-                collection,
-                projection,
-                queryArgs,
                 null
-            )?.use { cursor ->
 
-                val idColumn =
-                    cursor.getColumnIndexOrThrow(
-                        MediaStore.Images.Media._ID
-                    )
+            } else {
 
-                val nameColumn =
-                    cursor.getColumnIndexOrThrow(
-                        MediaStore.Images.Media.DISPLAY_NAME
-                    )
-
-                val folderColumn =
-                    cursor.getColumnIndexOrThrow(
-                        MediaStore.Images.Media.BUCKET_DISPLAY_NAME
-                    )
-
-                val dateColumn =
-                    cursor.getColumnIndexOrThrow(
-                        MediaStore.Images.Media.DATE_ADDED
-                    )
-
-                val sizeColumn =
-                    cursor.getColumnIndexOrThrow(
-                        MediaStore.Images.Media.SIZE
-                    )
-
-                val mimeColumn =
-                    cursor.getColumnIndexOrThrow(
-                        MediaStore.Images.Media.MIME_TYPE
-                    )
-
-                while (cursor.moveToNext()) {
-
-                    val id =
-                        cursor.getLong(idColumn)
-
-                    val name =
-                        cursor.getString(nameColumn)
-
-                    val folderName =
-                        cursor.getString(folderColumn)
-                            ?: "Unknown"
-
-                    val dateAdded =
-                        cursor.getLong(dateColumn)
-
-                    val size =
-                        cursor.getLong(sizeColumn)
-
-                    val mimeType =
-                        cursor.getString(mimeColumn)
-                            ?: ""
-
-                    val imageUri =
-                        ContentUris.withAppendedId(
-                            collection,
-                            id
-                        )
-
-                    imageList.add(
-                        ImageModel(
-                            id = id,
-                            name = name,
-                            uri = imageUri,
-                            folderName = folderName,
-                            dateAdded = dateAdded,
-                            size = size,
-                            mimeType = mimeType
-                        )
-                    )
-                }
+                "${MediaStore.Video.VideoColumns.BUCKET_DISPLAY_NAME} = ?"
             }
 
-            imageList
+
+        val selectionArgs =
+            if (
+                folderName == null
+            ) {
+
+                null
+
+            } else {
+
+                arrayOf(folderName)
+            }
+
+
+        context.contentResolver.query(
+
+            videoCollection,
+
+            projection,
+
+            selection,
+
+            selectionArgs,
+
+            "$dateAddedColumn DESC"
+
+        )?.use { cursor ->
+
+            val idIndex =
+                cursor.getColumnIndexOrThrow(
+                    idColumn
+                )
+
+
+            val nameIndex =
+                cursor.getColumnIndexOrThrow(
+                    displayNameColumn
+                )
+
+
+            val folderIndex =
+                cursor.getColumnIndexOrThrow(
+                    MediaStore.Video.VideoColumns
+                        .BUCKET_DISPLAY_NAME
+                )
+
+
+            val dateIndex =
+                cursor.getColumnIndexOrThrow(
+                    dateAddedColumn
+                )
+
+
+            val sizeIndex =
+                cursor.getColumnIndexOrThrow(
+                    sizeColumn
+                )
+
+
+            val mimeIndex =
+                cursor.getColumnIndexOrThrow(
+                    mimeTypeColumn
+                )
+
+
+            while (
+                cursor.moveToNext()
+            ) {
+
+                val id =
+                    cursor.getLong(
+                        idIndex
+                    )
+
+
+                val name =
+                    cursor.getString(
+                        nameIndex
+                    )
+
+
+                val folder =
+                    cursor.getString(
+                        folderIndex
+                    ) ?: "Unknown"
+
+
+                val dateAdded =
+                    cursor.getLong(
+                        dateIndex
+                    )
+
+
+                val size =
+                    cursor.getLong(
+                        sizeIndex
+                    )
+
+
+                val mimeType =
+                    cursor.getString(
+                        mimeIndex
+                    ) ?: "video/*"
+
+
+                val uri =
+                    ContentUris.withAppendedId(
+                        videoCollection,
+                        id
+                    )
+
+
+                result.add(
+
+                    ImageModel(
+
+                        id = id,
+
+                        name = name,
+
+                        uri = uri,
+
+                        folderName = folder,
+
+                        dateAdded = dateAdded,
+
+                        size = size,
+
+                        mimeType = mimeType
+                    )
+                )
+            }
         }
     }
 
 
-    suspend fun trashImages(
+    // =========================================================
+    // GET ALL FOLDERS
+    // =========================================================
+
+    suspend fun getAllFolders(
+        context: Context
+    ): ArrayList<GalleryFolder> {
+
+        return withContext(
+            Dispatchers.IO
+        ) {
+
+            val allMedia =
+                queryAllMedia(
+                    context
+                )
+
+
+            val folders =
+                ArrayList<GalleryFolder>()
+
+
+            for (
+            media in allMedia
+            ) {
+
+                var folder =
+                    folders.find {
+
+                        it.folderName ==
+                                media.folderName
+                    }
+
+
+                if (
+                    folder == null
+                ) {
+
+                    folder =
+                        GalleryFolder(
+
+                            folderName =
+                                media.folderName,
+
+                            coverImage =
+                                media.uri,
+
+                            imageList =
+                                arrayListOf()
+                        )
+
+
+                    folders.add(
+                        folder
+                    )
+                }
+
+
+                folder.imageList.add(
+                    media
+                )
+            }
+
+
+            folders
+        }
+    }
+
+
+    // =========================================================
+    // GET IMAGES + VIDEOS
+    // =========================================================
+
+    suspend fun getImages(
         context: Context,
-        uris: List<Uri>
-    ): Result<Int> {
+        folderName: String?
+    ): ArrayList<ImageModel> {
 
-        return withContext(Dispatchers.IO) {
+        return withContext(
+            Dispatchers.IO
+        ) {
 
-            try {
-
-                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-                    return@withContext Result.failure(
-                        Exception(
-                            "Trash is supported on Android 11 and above"
-                        )
-                    )
-                }
-
-                var trashedCount = 0
-
-                for (uri in uris) {
-
-                    val values = ContentValues().apply {
-                        put(
-                            MediaStore.Images.Media.IS_TRASHED,
-                            1
-                        )
-                    }
-
-                    val updated =
-                        context.contentResolver.update(
-                            uri,
-                            values,
-                            null,
-                            null
-                        )
-
-                    if (updated > 0) {
-                        trashedCount++
-                    }
-                }
-
-                Result.success(trashedCount)
-
-            } catch (e: Exception) {
-
-                Result.failure(e)
-            }
+            queryAllMedia(
+                context,
+                folderName
+            )
         }
     }
 
 
-    // Creating new Album — deliberately does NOT touch the filesystem.
-    fun createAlbum(context: Context, albumName: String): Result<String> {
+    // =========================================================
+    // CREATE ALBUM
+    // =========================================================
 
-        if (albumName.isBlank()) {
-            return Result.failure(Exception("Album name cannot be empty"))
+    fun createAlbum(
+        context: Context,
+        albumName: String
+    ): Result<String> {
+
+        if (
+            albumName.isBlank()
+        ) {
+
+            return Result.failure(
+                Exception(
+                    "Album name cannot be empty"
+                )
+            )
         }
 
-        if (com.example.mygallery.utils.CustomAlbumPreferences.hasCustomAlbum(context, albumName)) {
-            return Result.failure(Exception("Album already exists"))
+
+        if (
+            CustomAlbumPreferences.hasCustomAlbum(
+                context,
+                albumName
+            )
+        ) {
+
+            return Result.failure(
+                Exception(
+                    "Album already exists"
+                )
+            )
         }
 
-        com.example.mygallery.utils.CustomAlbumPreferences.addCustomAlbum(context, albumName)
-        return Result.success("Album created successfully")
+
+        CustomAlbumPreferences.addCustomAlbum(
+            context,
+            albumName
+        )
+
+
+        return Result.success(
+            "Album created successfully"
+        )
     }
+
+
+    // =========================================================
+    // SEARCH ALBUMS
+    // =========================================================
 
     fun searchAlbums(
         albums: List<GalleryFolder>,
         query: String
     ): List<GalleryFolder> {
 
-        if (query.isBlank()) return albums
+        if (
+            query.isBlank()
+        ) {
+
+            return albums
+        }
+
 
         return albums.filter {
-            it.folderName.contains(query, ignoreCase = true)
-        }
-    }
 
-    /**
-     * Merges in placeholder entries for custom albums (created via "+")
-     * that don't have any real photos yet — these have no MediaStore
-     * representation at all, so getAllFolders() never returns them on
-     * its own. Shared by GalleryViewModel (main Album grid) and
-     * AlbumPickerBottomSheet (Move/Copy picker) so both show the same
-     * set of albums, not just whichever one remembers to merge.
-     */
-    fun mergeCustomAlbums(context: Context, realFolders: List<GalleryFolder>): List<GalleryFolder> {
-
-        val realNames = realFolders.map { it.folderName }.toSet()
-
-        val customOnlyNames = com.example.mygallery.utils.CustomAlbumPreferences
-            .getCustomAlbumNames(context)
-            .filter { it !in realNames }
-
-        val placeholders = customOnlyNames.map { name ->
-            GalleryFolder(
-                folderName = name,
-                coverImage = Uri.EMPTY,
-                imageList = arrayListOf()
+            it.folderName.contains(
+                query,
+                ignoreCase = true
             )
         }
-
-        return realFolders + placeholders
     }
 
-    suspend fun deleteImages(context: Context, uris: List<Uri>): DeleteResult {
 
-        return withContext(Dispatchers.IO) {
+    // =========================================================
+    // MERGE CUSTOM ALBUMS
+    // =========================================================
+
+    fun mergeCustomAlbums(
+        context: Context,
+        realFolders: List<GalleryFolder>
+    ): List<GalleryFolder> {
+
+        val realNames =
+            realFolders
+                .map {
+                    it.folderName
+                }
+                .toSet()
+
+
+        val customOnlyNames =
+            CustomAlbumPreferences
+                .getCustomAlbumNames(
+                    context
+                )
+                .filter {
+                    it !in realNames
+                }
+
+
+        val placeholders =
+            customOnlyNames.map { name ->
+
+                GalleryFolder(
+
+                    folderName =
+                        name,
+
+                    coverImage =
+                        Uri.EMPTY,
+
+                    imageList =
+                        arrayListOf()
+                )
+            }
+
+
+        return realFolders +
+                placeholders
+    }
+
+
+    // =========================================================
+    // DELETE MEDIA
+    // =========================================================
+
+    suspend fun deleteImages(
+        context: Context,
+        uris: List<Uri>
+    ): DeleteResult {
+
+        return withContext(
+            Dispatchers.IO
+        ) {
+
+            if (
+                uris.isEmpty()
+            ) {
+
+                return@withContext DeleteResult.Success
+            }
+
 
             when {
 
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> {
+                Build.VERSION.SDK_INT >=
+                        Build.VERSION_CODES.R -> {
+
                     try {
+
                         val pendingIntent =
-                            MediaStore.createDeleteRequest(context.contentResolver, uris)
-                        DeleteResult.ConfirmDelete(pendingIntent.intentSender)
-                    } catch (e: Exception) {
-                        DeleteResult.Error(e.message ?: "Could not request delete")
+                            MediaStore.createDeleteRequest(
+                                context.contentResolver,
+                                uris
+                            )
+
+
+                        DeleteResult.ConfirmDelete(
+                            pendingIntent.intentSender
+                        )
+
+                    } catch (
+                        e: Exception
+                    ) {
+
+                        DeleteResult.Error(
+                            e.message
+                                ?: "Could not request delete"
+                        )
                     }
                 }
 
-                Build.VERSION.SDK_INT == Build.VERSION_CODES.Q -> {
-                    val remaining = uris.toMutableList()
+
+                Build.VERSION.SDK_INT ==
+                        Build.VERSION_CODES.Q -> {
+
+                    val remaining =
+                        uris.toMutableList()
+
+
                     try {
-                        for (uri in uris) {
-                            context.contentResolver.delete(uri, null, null)
-                            remaining.remove(uri)
+
+                        for (
+                        uri in uris
+                        ) {
+
+                            context.contentResolver.delete(
+                                uri,
+                                null,
+                                null
+                            )
+
+
+                            remaining.remove(
+                                uri
+                            )
                         }
+
+
                         DeleteResult.Success
-                    } catch (e: RecoverableSecurityException) {
+
+                    } catch (
+                        e: RecoverableSecurityException
+                    ) {
+
                         DeleteResult.GrantPermissionThenRetry(
-                            e.userAction.actionIntent.intentSender,
+
+                            e.userAction
+                                .actionIntent
+                                .intentSender,
+
                             remaining
                         )
-                    } catch (e: Exception) {
-                        DeleteResult.Error(e.message ?: "Delete failed")
+
+                    } catch (
+                        e: Exception
+                    ) {
+
+                        DeleteResult.Error(
+                            e.message
+                                ?: "Delete failed"
+                        )
                     }
                 }
 
+
                 else -> {
+
                     try {
-                        uris.forEach { uri -> context.contentResolver.delete(uri, null, null) }
+
+                        uris.forEach { uri ->
+
+                            context.contentResolver.delete(
+                                uri,
+                                null,
+                                null
+                            )
+                        }
+
+
                         DeleteResult.Success
-                    } catch (e: Exception) {
-                        DeleteResult.Error(e.message ?: "Delete failed")
+
+                    } catch (
+                        e: Exception
+                    ) {
+
+                        DeleteResult.Error(
+                            e.message
+                                ?: "Delete failed"
+                        )
                     }
                 }
             }
         }
     }
+
+
+    // =========================================================
+    // MOVE IMAGE / VIDEO TO CUSTOM TRASH
+    // =========================================================
 
     suspend fun moveImageToTrash(
         context: Context,
@@ -418,41 +809,70 @@ class GalleryRepository {
         )
     }
 
+
     suspend fun moveImagesToTrash(
         context: Context,
         images: List<ImageModel>
     ): Result<Int> {
 
-        return try {
+        return withContext(
+            Dispatchers.IO
+        ) {
 
-            var movedCount = 0
+            try {
 
-            for (image in images) {
+                var movedCount =
+                    0
 
-                val result =
-                    moveImageToTrash(
-                        context,
-                        image
-                    )
 
-                if (result.isSuccess) {
-                    movedCount++
-                } else {
-                    return Result.failure(
-                        result.exceptionOrNull()
-                            ?: Exception("Unable to move image to Trash")
-                    )
+                for (
+                image in images
+                ) {
+
+                    val result =
+                        moveImageToTrash(
+                            context,
+                            image
+                        )
+
+
+                    if (
+                        result.isSuccess
+                    ) {
+
+                        movedCount++
+
+                    } else {
+
+                        return@withContext Result.failure(
+                            result.exceptionOrNull()
+                                ?: Exception(
+                                    "Unable to move media to Trash"
+                                )
+                        )
+                    }
                 }
+
+
+                Result.success(
+                    movedCount
+                )
+
+            } catch (
+                e: Exception
+            ) {
+
+                Result.failure(
+                    e
+                )
             }
-
-            Result.success(movedCount)
-
-        } catch (e: Exception) {
-
-            Result.failure(e)
         }
     }
 
+
+    // =========================================================
+    // COPY IMAGE / VIDEO
+    // =========================================================
 
     suspend fun copyImages(
         context: Context,
@@ -460,56 +880,384 @@ class GalleryRepository {
         destinationAlbumName: String
     ): Result<Int> {
 
-        return withContext(Dispatchers.IO) {
+        return withContext(
+            Dispatchers.IO
+        ) {
 
             try {
-                var copiedCount = 0
 
-                for (sourceUri in uris) {
+                if (
+                    destinationAlbumName.isBlank()
+                ) {
 
-                    val displayName = queryDisplayName(context, sourceUri)
-                        ?: "IMG_${System.currentTimeMillis()}.jpg"
-                    val mimeType = context.contentResolver.getType(sourceUri) ?: "image/jpeg"
-
-                    val values = ContentValues().apply {
-                        put(MediaStore.Images.Media.DISPLAY_NAME, displayName)
-                        put(MediaStore.Images.Media.MIME_TYPE, mimeType)
-                        put(
-                            MediaStore.Images.Media.RELATIVE_PATH,
-                            "Pictures/MyGallery/$destinationAlbumName"
+                    return@withContext Result.failure(
+                        Exception(
+                            "Destination album cannot be empty"
                         )
-                    }
-
-                    val newUri = context.contentResolver.insert(
-                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                        values
-                    ) ?: continue
-
-                    context.contentResolver.openInputStream(sourceUri)?.use { input ->
-                        context.contentResolver.openOutputStream(newUri)?.use { output ->
-                            input.copyTo(output)
-                        }
-                    }
-
-                    copiedCount++
+                    )
                 }
 
-                Result.success(copiedCount)
 
-            } catch (e: Exception) {
-                Result.failure(e)
+                var copiedCount =
+                    0
+
+
+                for (
+                sourceUri in uris
+                ) {
+
+                    val resolver =
+                        context.contentResolver
+
+
+                    val displayName =
+                        queryDisplayName(
+                            context,
+                            sourceUri
+                        )
+                            ?: "IMG_${System.currentTimeMillis()}"
+
+
+                    val mimeType =
+                        resolver.getType(
+                            sourceUri
+                        )
+                            ?: "application/octet-stream"
+
+
+                    val isVideo =
+                        mimeType.startsWith(
+                            "video/",
+                            ignoreCase = true
+                        )
+
+
+                    val destinationCollection =
+                        if (
+                            isVideo
+                        ) {
+
+                            videoCollection
+
+                        } else {
+
+                            imageCollection
+                        }
+
+
+                    val values =
+                        ContentValues().apply {
+
+                            put(
+                                MediaStore.MediaColumns.DISPLAY_NAME,
+                                displayName
+                            )
+
+
+                            put(
+                                MediaStore.MediaColumns.MIME_TYPE,
+                                mimeType
+                            )
+
+
+                            if (
+                                Build.VERSION.SDK_INT >=
+                                Build.VERSION_CODES.Q
+                            ) {
+
+                                val relativePath =
+                                    if (isVideo) {
+
+                                        "${Environment.DIRECTORY_MOVIES}/" +
+                                                "MyGallery/" +
+                                                destinationAlbumName
+
+                                    } else {
+
+                                        "${Environment.DIRECTORY_PICTURES}/" +
+                                                "MyGallery/" +
+                                                destinationAlbumName
+                                    }
+
+
+                                put(
+                                    MediaStore.MediaColumns.IS_PENDING,
+                                    1
+                                )
+                            }
+                        }
+
+
+                    val newUri =
+                        resolver.insert(
+                            destinationCollection,
+                            values
+                        )
+                            ?: continue
+
+
+                    try {
+
+                        val copied =
+                            resolver
+                                .openInputStream(
+                                    sourceUri
+                                )
+                                ?.use { input ->
+
+                                    resolver
+                                        .openOutputStream(
+                                            newUri
+                                        )
+                                        ?.use { output ->
+
+                                            input.copyTo(
+                                                output
+                                            )
+                                        }
+                                } != null
+
+
+                        if (
+                            !copied
+                        ) {
+
+                            resolver.delete(
+                                newUri,
+                                null,
+                                null
+                            )
+
+                            continue
+                        }
+
+
+                        if (
+                            Build.VERSION.SDK_INT >=
+                            Build.VERSION_CODES.Q
+                        ) {
+
+                            val completeValues =
+                                ContentValues().apply {
+
+                                    put(
+                                        MediaStore.MediaColumns.IS_PENDING,
+                                        0
+                                    )
+                                }
+
+
+                            resolver.update(
+                                newUri,
+                                completeValues,
+                                null,
+                                null
+                            )
+                        }
+
+
+                        copiedCount++
+
+                    } catch (
+                        e: Exception
+                    ) {
+
+                        try {
+
+                            resolver.delete(
+                                newUri,
+                                null,
+                                null
+                            )
+
+                        } catch (
+                            _: Exception
+                        ) {
+                        }
+                    }
+                }
+
+
+                Result.success(
+                    copiedCount
+                )
+
+            } catch (
+                e: Exception
+            ) {
+
+                Result.failure(
+                    e
+                )
             }
         }
     }
 
-    private fun queryDisplayName(context: Context, uri: Uri): String? {
-        val projection = arrayOf(MediaStore.Images.Media.DISPLAY_NAME)
-        context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
-            if (cursor.moveToFirst()) {
-                val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
-                return cursor.getString(nameColumn)
+
+    // =========================================================
+    // GET DISPLAY NAME
+    // =========================================================
+
+    private fun queryDisplayName(
+        context: Context,
+        uri: Uri
+    ): String? {
+
+        val projection =
+            arrayOf(
+                MediaStore.MediaColumns.DISPLAY_NAME
+            )
+
+
+        context.contentResolver.query(
+            uri,
+            projection,
+            null,
+            null,
+            null
+        )?.use { cursor ->
+
+            if (
+                cursor.moveToFirst()
+            ) {
+
+                val index =
+                    cursor.getColumnIndex(
+                        MediaStore.MediaColumns.DISPLAY_NAME
+                    )
+
+
+                if (
+                    index >= 0
+                ) {
+
+                    return cursor.getString(
+                        index
+                    )
+                }
             }
         }
+
+
         return null
+    }
+
+
+    // =========================================================
+    // LEGACY TRASH API
+    // =========================================================
+
+    suspend fun trashImages(
+        context: Context,
+        uris: List<Uri>
+    ): Result<Int> {
+
+        return withContext(
+            Dispatchers.IO
+        ) {
+
+            if (
+                Build.VERSION.SDK_INT <
+                Build.VERSION_CODES.R
+            ) {
+
+                return@withContext Result.failure(
+                    Exception(
+                        "Trash is supported on Android 11 and above"
+                    )
+                )
+            }
+
+
+            try {
+
+                var count =
+                    0
+
+
+                for (
+                uri in uris
+                ) {
+
+                    val values =
+                        ContentValues().apply {
+
+                            put(
+                                MediaStore.MediaColumns.IS_TRASHED,
+                                1
+                            )
+                        }
+
+
+                    val updated =
+                        context.contentResolver.update(
+                            uri,
+                            values,
+                            null,
+                            null
+                        )
+
+
+                    if (
+                        updated > 0
+                    ) {
+
+                        count++
+                    }
+                }
+
+
+                Result.success(
+                    count
+                )
+
+            } catch (
+                e: Exception
+            ) {
+
+                Result.failure(
+                    e
+                )
+            }
+        }
+
+
+
+    }
+
+    private fun playVideo(
+        photo: ImageModel
+    ) {
+
+        try {
+
+            val intent =
+                Intent(
+                    Intent.ACTION_VIEW
+                ).apply {
+
+                    setDataAndType(
+                        photo.uri,
+                        photo.mimeType
+                    )
+
+                    addFlags(
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    )
+                }
+
+
+            startActivity(intent)
+
+        } catch (
+            e: Exception
+        ) {
+
+            Toast.makeText(
+                requireContext(),
+                "No video player available",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
     }
 }
