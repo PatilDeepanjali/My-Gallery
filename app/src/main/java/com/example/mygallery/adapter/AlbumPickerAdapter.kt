@@ -15,43 +15,132 @@ class AlbumPickerAdapter(
     private val onAlbumClick: (GalleryFolder) -> Unit
 ) : RecyclerView.Adapter<AlbumPickerAdapter.ViewHolder>() {
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        val binding = ItemAlbumGridBinding.inflate(
-            LayoutInflater.from(parent.context), parent, false
-        )
+    override fun onCreateViewHolder(
+        parent: ViewGroup,
+        viewType: Int
+    ): ViewHolder {
+
+        val binding =
+            ItemAlbumGridBinding.inflate(
+                LayoutInflater.from(parent.context),
+                parent,
+                false
+            )
+
         return ViewHolder(binding)
     }
 
-    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val folder = folders[position]
 
-        holder.binding.tvAlbumName.text = folder.folderName
-        holder.binding.tvAlbumMeta.text = "${folder.imageCount} Items"
+    override fun onBindViewHolder(
+        holder: ViewHolder,
+        position: Int
+    ) {
 
-        holder.binding.imgPin.visibility = View.GONE
-        holder.binding.ivCheckbox.visibility = View.GONE
+        val folder =
+            folders[position]
 
-        if (folder.imageList.isNotEmpty()) {
-            Glide.with(holder.itemView.context)
-                .load(folder.imageList[0].uri)
+        val binding =
+            holder.binding
+
+        // -----------------------------------------------------
+        // Album name
+        // -----------------------------------------------------
+
+        binding.tvAlbumName.text =
+            folder.folderName
+
+
+        // -----------------------------------------------------
+        // Album item count
+        // -----------------------------------------------------
+
+        binding.tvAlbumMeta.text =
+            "${folder.imageCount} Items"
+
+
+        // -----------------------------------------------------
+        // Hide selection/pin controls
+        // -----------------------------------------------------
+
+        binding.imgPin.visibility =
+            View.GONE
+
+        binding.ivCheckbox.visibility =
+            View.GONE
+
+
+        // -----------------------------------------------------
+        // Reset recycled image state
+        // -----------------------------------------------------
+
+        binding.imgAlbum.setImageDrawable(
+            null
+        )
+
+        binding.imgAlbum.background =
+            null
+
+
+        // -----------------------------------------------------
+        // Album cover
+        // -----------------------------------------------------
+
+        if (
+            folder.imageList.isNotEmpty()
+        ) {
+
+            val coverUri =
+                folder.imageList
+                    .first()
+                    .uri
+
+            Glide.with(
+                binding.imgAlbum.context
+            )
+                .load(coverUri)
                 .centerCrop()
-                .into(holder.binding.imgAlbum)
+                .placeholder(
+                    R.color.surfaceVariant
+                )
+                .error(
+                    R.color.surfaceVariant
+                )
+                .into(
+                    binding.imgAlbum
+                )
+
         } else {
-            // A freshly created custom album with no photos yet has no
-            // real image to use as a cover — clear any recycled image
-            // and show a plain placeholder background instead.
-            holder.binding.imgAlbum.setImageDrawable(null)
-            holder.binding.imgAlbum.setBackgroundColor(
-                ContextCompat.getColor(holder.itemView.context, R.color.surfaceVariant)
+
+            // Empty custom album
+            binding.imgAlbum.setBackgroundColor(
+                ContextCompat.getColor(
+                    binding.imgAlbum.context,
+                    R.color.surfaceVariant
+                )
             )
         }
 
-        holder.itemView.setOnClickListener {
-            onAlbumClick(folder)
+
+        // -----------------------------------------------------
+        // Click
+        // -----------------------------------------------------
+
+        binding.root.setOnClickListener {
+
+            onAlbumClick(
+                folder
+            )
         }
     }
 
-    override fun getItemCount(): Int = folders.size
 
-    class ViewHolder(val binding: ItemAlbumGridBinding) : RecyclerView.ViewHolder(binding.root)
+    override fun getItemCount(): Int =
+        folders.size
+
+
+    class ViewHolder(
+        val binding: ItemAlbumGridBinding
+    ) : RecyclerView.ViewHolder(
+        binding.root
+    )
 }

@@ -41,6 +41,7 @@ import com.example.mygallery.ui.photo.selection.PhotoSelectionAction
 import com.example.mygallery.ui.photo.selection.PhotoSelectionActionPopup
 import com.example.mygallery.ui.photo.slideshow.SlideShowFragment
 import com.example.mygallery.ui.state.PhotosUiState
+import com.example.mygallery.ui.video.VideoPlayerFragment
 import com.example.mygallery.utils.FavoritePreferences
 import com.example.mygallery.utils.TrashManager
 import com.example.mygallery.utils.TrashStorage
@@ -840,8 +841,49 @@ class PhotoFragment : Fragment() {
                 // -------------------------------------------------
 
                 onPhotoClick = {
-                        photo,
-                        position ->
+                        photoItem,
+                        _ ->
+
+                    // PhotoListItem.Photo → ImageModel
+                    val image =
+                        photoItem.image
+
+
+                    // -------------------------------------------------
+                    // VIDEO
+                    // -------------------------------------------------
+
+                    if (
+                        image.mimeType.startsWith(
+                            "video/",
+                            ignoreCase = true
+                        )
+                    ) {
+
+                        openVideoPlayer(
+                            image
+                        )
+
+                        return@PhotosAdapter
+                    }
+
+
+                    // -------------------------------------------------
+                    // IMAGE
+                    // -------------------------------------------------
+
+                    val photoPosition =
+                        photoList.indexOf(
+                            image
+                        )
+
+
+                    if (
+                        photoPosition < 0
+                    ) {
+                        return@PhotosAdapter
+                    }
+
 
                     val previewPhoto =
                         PhotoPreviewFragment()
@@ -857,12 +899,11 @@ class PhotoFragment : Fragment() {
                                 photoList
                             )
 
-
                             putInt(
                                 PhotoPreviewFragment
                                     .ARG_POSITION,
 
-                                position
+                                photoPosition
                             )
                         }
 
@@ -874,7 +915,7 @@ class PhotoFragment : Fragment() {
                             previewPhoto
                         )
                         .addToBackStack(
-                            null
+                            "photo_preview"
                         )
                         .commit()
                 },
@@ -963,6 +1004,39 @@ class PhotoFragment : Fragment() {
                 .isSelectionMode
                 .value == true
         )
+    }
+
+
+    private fun openVideoPlayer(
+        photo: ImageModel
+    ) {
+
+        val videoFragment =
+            VideoPlayerFragment()
+
+
+        videoFragment.arguments =
+            Bundle().apply {
+
+                putString(
+                    VideoPlayerFragment
+                        .ARG_VIDEO_URI,
+
+                    photo.uri.toString()
+                )
+            }
+
+
+        parentFragmentManager
+            .beginTransaction()
+            .replace(
+                R.id.frameContainer,
+                videoFragment
+            )
+            .addToBackStack(
+                null
+            )
+            .commit()
     }
 
 

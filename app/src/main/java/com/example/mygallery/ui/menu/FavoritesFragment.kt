@@ -1,15 +1,16 @@
-package com.example.mygallery.ui.photo
+package com.example.mygallery.ui.menu
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.net.Uri
 import android.os.Bundle
+import android.text.format.Formatter
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.Toast
-
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -18,7 +19,6 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
-
 import com.example.mygallery.R
 import com.example.mygallery.adapter.PhotosAdapter
 import com.example.mygallery.databinding.FragmentFavoritesBinding
@@ -29,6 +29,8 @@ import com.example.mygallery.model.TrashItem
 import com.example.mygallery.repository.GalleryRepository
 import com.example.mygallery.ui.MainActivity
 import com.example.mygallery.ui.album.AlbumPickerBottomSheet
+import com.example.mygallery.ui.photo.PhotoPreviewFragment
+import com.example.mygallery.ui.photo.SortBottomSheet
 import com.example.mygallery.ui.photo.menu.ColumnBottomSheet
 import com.example.mygallery.ui.photo.menu.FilterBottomSheet
 import com.example.mygallery.ui.photo.menu.FilterType
@@ -43,6 +45,7 @@ import com.example.mygallery.ui.photo.selection.PhotoSelectionAction
 import com.example.mygallery.ui.photo.selection.PhotoSelectionActionPopup
 import com.example.mygallery.ui.photo.slideshow.SlideShowFragment
 import com.example.mygallery.ui.state.PhotosUiState
+import com.example.mygallery.ui.video.VideoPlayerFragment
 import com.example.mygallery.utils.TrashManager
 import com.example.mygallery.utils.TrashStorage
 import com.example.mygallery.viewmodel.PhotosViewModel
@@ -109,7 +112,7 @@ class FavoritesFragment : Fragment() {
             List<TrashItem> = emptyList()
 
     private var pendingDeleteRetryUris:
-            List<android.net.Uri>? = null
+            List<Uri>? = null
 
     private var pendingDeleteSuccessMessage =
         "Moved to Trash"
@@ -1508,7 +1511,7 @@ class FavoritesFragment : Fragment() {
 
 
         val sheet =
-            AlbumPickerBottomSheet.newInstance(
+            AlbumPickerBottomSheet.Companion.newInstance(
                 mode,
                 excludedNames
             )
@@ -1987,7 +1990,7 @@ class FavoritesFragment : Fragment() {
 
 
         val slideshow =
-            SlideShowFragment.newInstance(
+            SlideShowFragment.Companion.newInstance(
                 ArrayList(images),
                 position
             )
@@ -2242,12 +2245,40 @@ class FavoritesFragment : Fragment() {
                 // -------------------------------------------------
 
                 onPhotoClick = {
-                        photo,
+                        photoItem,
                         _ ->
+
+                    // PhotoListItem.Photo -> ImageModel
+                    val image =
+                        photoItem.image
+
+
+                    // -------------------------------------------------
+                    // VIDEO
+                    // -------------------------------------------------
+
+                    if (
+                        image.mimeType.startsWith(
+                            "video/",
+                            ignoreCase = true
+                        )
+                    ) {
+
+                        openVideoPlayer(
+                            image
+                        )
+
+                        return@PhotosAdapter
+                    }
+
+
+                    // -------------------------------------------------
+                    // IMAGE
+                    // -------------------------------------------------
 
                     val photoPosition =
                         photoList.indexOf(
-                            photo.image
+                            image
                         )
 
 
@@ -2271,7 +2302,6 @@ class FavoritesFragment : Fragment() {
 
                                 photoList
                             )
-
 
                             putInt(
                                 PhotoPreviewFragment
@@ -2299,8 +2329,7 @@ class FavoritesFragment : Fragment() {
                 // Long press
                 // -------------------------------------------------
 
-                onPhotoLongClick = {
-                        photo ->
+                onPhotoLongClick = { photo ->
 
                     viewModel.enterSelectionMode(
                         photo.image
@@ -2312,8 +2341,7 @@ class FavoritesFragment : Fragment() {
                 // Selection toggle
                 // -------------------------------------------------
 
-                onPhotoToggleSelect = {
-                        photo ->
+                onPhotoToggleSelect = { photo ->
 
                     viewModel.toggleSelection(
                         photo.image
@@ -2424,6 +2452,37 @@ class FavoritesFragment : Fragment() {
         return layoutManager
     }
 
+    private fun openVideoPlayer(
+        photo: ImageModel
+    ) {
+
+        val videoFragment =
+            VideoPlayerFragment()
+
+
+        videoFragment.arguments =
+            Bundle().apply {
+
+                putString(
+                    VideoPlayerFragment
+                        .ARG_VIDEO_URI,
+
+                    photo.uri.toString()
+                )
+            }
+
+
+        parentFragmentManager
+            .beginTransaction()
+            .replace(
+                R.id.frameContainer,
+                videoFragment
+            )
+            .addToBackStack(
+                null
+            )
+            .commit()
+    }
 
     // =========================================================
     // SELECTION UI
@@ -2469,7 +2528,7 @@ class FavoritesFragment : Fragment() {
 
 
         binding.tvSelectedSize.text =
-            android.text.format.Formatter
+            Formatter
                 .formatShortFileSize(
                     requireContext(),
                     selectedSize

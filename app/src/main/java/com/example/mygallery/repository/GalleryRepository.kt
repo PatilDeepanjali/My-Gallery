@@ -1,18 +1,12 @@
 package com.example.mygallery.repository
 
 import android.app.RecoverableSecurityException
-import android.content.ContentResolver
-import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
-import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
-import android.widget.Toast
-import androidx.core.content.ContentProviderCompat.requireContext
-import androidx.core.content.ContextCompat.startActivity
 import com.example.mygallery.model.DeleteResult
 import com.example.mygallery.model.GalleryFolder
 import com.example.mygallery.model.ImageModel
@@ -21,10 +15,9 @@ import com.example.mygallery.utils.CustomAlbumPreferences
 import com.example.mygallery.utils.TrashManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-
+import java.io.File
 
 class GalleryRepository {
-
 
     // =========================================================
     // MEDIA COLLECTIONS
@@ -69,13 +62,11 @@ class GalleryRepository {
         val result =
             ArrayList<ImageModel>()
 
-
         queryImageMedia(
             context = context,
             folderName = folderName,
             result = result
         )
-
 
         queryVideoMedia(
             context = context,
@@ -83,11 +74,9 @@ class GalleryRepository {
             result = result
         )
 
-
         result.sortByDescending {
             it.dateAdded
         }
-
 
         return result
     }
@@ -105,162 +94,92 @@ class GalleryRepository {
 
         val projection =
             arrayOf(
-
                 idColumn,
-
                 displayNameColumn,
-
-                MediaStore.Images.ImageColumns
-                    .BUCKET_DISPLAY_NAME,
-
+                MediaStore.Images.ImageColumns.BUCKET_DISPLAY_NAME,
                 dateAddedColumn,
-
                 sizeColumn,
-
                 mimeTypeColumn
             )
 
-
         val selection =
-            if (
-                folderName == null
-            ) {
-
+            if (folderName == null) {
                 null
-
             } else {
-
                 "${MediaStore.Images.ImageColumns.BUCKET_DISPLAY_NAME} = ?"
             }
 
-
         val selectionArgs =
-            if (
-                folderName == null
-            ) {
-
+            if (folderName == null) {
                 null
-
             } else {
-
                 arrayOf(folderName)
             }
 
-
         context.contentResolver.query(
-
             imageCollection,
-
             projection,
-
             selection,
-
             selectionArgs,
-
             "$dateAddedColumn DESC"
-
         )?.use { cursor ->
 
             val idIndex =
-                cursor.getColumnIndexOrThrow(
-                    idColumn
-                )
-
+                cursor.getColumnIndexOrThrow(idColumn)
 
             val nameIndex =
-                cursor.getColumnIndexOrThrow(
-                    displayNameColumn
-                )
-
+                cursor.getColumnIndexOrThrow(displayNameColumn)
 
             val folderIndex =
                 cursor.getColumnIndexOrThrow(
-                    MediaStore.Images.ImageColumns
-                        .BUCKET_DISPLAY_NAME
+                    MediaStore.Images.ImageColumns.BUCKET_DISPLAY_NAME
                 )
-
 
             val dateIndex =
-                cursor.getColumnIndexOrThrow(
-                    dateAddedColumn
-                )
-
+                cursor.getColumnIndexOrThrow(dateAddedColumn)
 
             val sizeIndex =
-                cursor.getColumnIndexOrThrow(
-                    sizeColumn
-                )
-
+                cursor.getColumnIndexOrThrow(sizeColumn)
 
             val mimeIndex =
-                cursor.getColumnIndexOrThrow(
-                    mimeTypeColumn
-                )
+                cursor.getColumnIndexOrThrow(mimeTypeColumn)
 
-
-            while (
-                cursor.moveToNext()
-            ) {
+            while (cursor.moveToNext()) {
 
                 val id =
-                    cursor.getLong(
-                        idIndex
-                    )
-
+                    cursor.getLong(idIndex)
 
                 val name =
-                    cursor.getString(
-                        nameIndex
-                    )
-
+                    cursor.getString(nameIndex)
 
                 val folder =
-                    cursor.getString(
-                        folderIndex
-                    ) ?: "Unknown"
-
+                    cursor.getString(folderIndex)
+                        ?: "Unknown"
 
                 val dateAdded =
-                    cursor.getLong(
-                        dateIndex
-                    )
-
+                    cursor.getLong(dateIndex)
 
                 val size =
-                    cursor.getLong(
-                        sizeIndex
-                    )
-
+                    cursor.getLong(sizeIndex)
 
                 val mimeType =
-                    cursor.getString(
-                        mimeIndex
-                    ) ?: "image/*"
-
+                    cursor.getString(mimeIndex)
+                        ?: "image/*"
 
                 val uri =
-                    ContentUris.withAppendedId(
+                    Uri.withAppendedPath(
                         imageCollection,
-                        id
+                        id.toString()
                     )
 
-
                 result.add(
-
                     ImageModel(
-
                         id = id,
-
                         name = name,
-
                         uri = uri,
-
                         folderName = folder,
-
                         dateAdded = dateAdded,
-
                         size = size,
-
                         mimeType = mimeType
                     )
                 )
@@ -281,162 +200,92 @@ class GalleryRepository {
 
         val projection =
             arrayOf(
-
                 idColumn,
-
                 displayNameColumn,
-
-                MediaStore.Video.VideoColumns
-                    .BUCKET_DISPLAY_NAME,
-
+                MediaStore.Video.VideoColumns.BUCKET_DISPLAY_NAME,
                 dateAddedColumn,
-
                 sizeColumn,
-
                 mimeTypeColumn
             )
 
-
         val selection =
-            if (
-                folderName == null
-            ) {
-
+            if (folderName == null) {
                 null
-
             } else {
-
                 "${MediaStore.Video.VideoColumns.BUCKET_DISPLAY_NAME} = ?"
             }
 
-
         val selectionArgs =
-            if (
-                folderName == null
-            ) {
-
+            if (folderName == null) {
                 null
-
             } else {
-
                 arrayOf(folderName)
             }
 
-
         context.contentResolver.query(
-
             videoCollection,
-
             projection,
-
             selection,
-
             selectionArgs,
-
             "$dateAddedColumn DESC"
-
         )?.use { cursor ->
 
             val idIndex =
-                cursor.getColumnIndexOrThrow(
-                    idColumn
-                )
-
+                cursor.getColumnIndexOrThrow(idColumn)
 
             val nameIndex =
-                cursor.getColumnIndexOrThrow(
-                    displayNameColumn
-                )
-
+                cursor.getColumnIndexOrThrow(displayNameColumn)
 
             val folderIndex =
                 cursor.getColumnIndexOrThrow(
-                    MediaStore.Video.VideoColumns
-                        .BUCKET_DISPLAY_NAME
+                    MediaStore.Video.VideoColumns.BUCKET_DISPLAY_NAME
                 )
-
 
             val dateIndex =
-                cursor.getColumnIndexOrThrow(
-                    dateAddedColumn
-                )
-
+                cursor.getColumnIndexOrThrow(dateAddedColumn)
 
             val sizeIndex =
-                cursor.getColumnIndexOrThrow(
-                    sizeColumn
-                )
-
+                cursor.getColumnIndexOrThrow(sizeColumn)
 
             val mimeIndex =
-                cursor.getColumnIndexOrThrow(
-                    mimeTypeColumn
-                )
+                cursor.getColumnIndexOrThrow(mimeTypeColumn)
 
-
-            while (
-                cursor.moveToNext()
-            ) {
+            while (cursor.moveToNext()) {
 
                 val id =
-                    cursor.getLong(
-                        idIndex
-                    )
-
+                    cursor.getLong(idIndex)
 
                 val name =
-                    cursor.getString(
-                        nameIndex
-                    )
-
+                    cursor.getString(nameIndex)
 
                 val folder =
-                    cursor.getString(
-                        folderIndex
-                    ) ?: "Unknown"
-
+                    cursor.getString(folderIndex)
+                        ?: "Unknown"
 
                 val dateAdded =
-                    cursor.getLong(
-                        dateIndex
-                    )
-
+                    cursor.getLong(dateIndex)
 
                 val size =
-                    cursor.getLong(
-                        sizeIndex
-                    )
-
+                    cursor.getLong(sizeIndex)
 
                 val mimeType =
-                    cursor.getString(
-                        mimeIndex
-                    ) ?: "video/*"
-
+                    cursor.getString(mimeIndex)
+                        ?: "video/*"
 
                 val uri =
-                    ContentUris.withAppendedId(
+                    Uri.withAppendedPath(
                         videoCollection,
-                        id
+                        id.toString()
                     )
 
-
                 result.add(
-
                     ImageModel(
-
                         id = id,
-
                         name = name,
-
                         uri = uri,
-
                         folderName = folder,
-
                         dateAdded = dateAdded,
-
                         size = size,
-
                         mimeType = mimeType
                     )
                 )
@@ -453,61 +302,35 @@ class GalleryRepository {
         context: Context
     ): ArrayList<GalleryFolder> {
 
-        return withContext(
-            Dispatchers.IO
-        ) {
+        return withContext(Dispatchers.IO) {
 
             val allMedia =
-                queryAllMedia(
-                    context
-                )
-
+                queryAllMedia(context)
 
             val folders =
                 ArrayList<GalleryFolder>()
 
-
-            for (
-            media in allMedia
-            ) {
+            for (media in allMedia) {
 
                 var folder =
                     folders.find {
-
-                        it.folderName ==
-                                media.folderName
+                        it.folderName == media.folderName
                     }
 
-
-                if (
-                    folder == null
-                ) {
+                if (folder == null) {
 
                     folder =
                         GalleryFolder(
-
-                            folderName =
-                                media.folderName,
-
-                            coverImage =
-                                media.uri,
-
-                            imageList =
-                                arrayListOf()
+                            folderName = media.folderName,
+                            coverImage = media.uri,
+                            imageList = arrayListOf()
                         )
 
-
-                    folders.add(
-                        folder
-                    )
+                    folders.add(folder)
                 }
 
-
-                folder.imageList.add(
-                    media
-                )
+                folder.imageList.add(media)
             }
-
 
             folders
         }
@@ -523,9 +346,7 @@ class GalleryRepository {
         folderName: String?
     ): ArrayList<ImageModel> {
 
-        return withContext(
-            Dispatchers.IO
-        ) {
+        return withContext(Dispatchers.IO) {
 
             queryAllMedia(
                 context,
@@ -544,9 +365,7 @@ class GalleryRepository {
         albumName: String
     ): Result<String> {
 
-        if (
-            albumName.isBlank()
-        ) {
+        if (albumName.isBlank()) {
 
             return Result.failure(
                 Exception(
@@ -554,7 +373,6 @@ class GalleryRepository {
                 )
             )
         }
-
 
         if (
             CustomAlbumPreferences.hasCustomAlbum(
@@ -570,12 +388,10 @@ class GalleryRepository {
             )
         }
 
-
         CustomAlbumPreferences.addCustomAlbum(
             context,
             albumName
         )
-
 
         return Result.success(
             "Album created successfully"
@@ -592,13 +408,9 @@ class GalleryRepository {
         query: String
     ): List<GalleryFolder> {
 
-        if (
-            query.isBlank()
-        ) {
-
+        if (query.isBlank()) {
             return albums
         }
-
 
         return albums.filter {
 
@@ -626,36 +438,24 @@ class GalleryRepository {
                 }
                 .toSet()
 
-
         val customOnlyNames =
             CustomAlbumPreferences
-                .getCustomAlbumNames(
-                    context
-                )
+                .getCustomAlbumNames(context)
                 .filter {
                     it !in realNames
                 }
-
 
         val placeholders =
             customOnlyNames.map { name ->
 
                 GalleryFolder(
-
-                    folderName =
-                        name,
-
-                    coverImage =
-                        Uri.EMPTY,
-
-                    imageList =
-                        arrayListOf()
+                    folderName = name,
+                    coverImage = Uri.EMPTY,
+                    imageList = arrayListOf()
                 )
             }
 
-
-        return realFolders +
-                placeholders
+        return realFolders + placeholders
     }
 
 
@@ -668,19 +468,17 @@ class GalleryRepository {
         uris: List<Uri>
     ): DeleteResult {
 
-        return withContext(
-            Dispatchers.IO
-        ) {
+        return withContext(Dispatchers.IO) {
 
-            if (
-                uris.isEmpty()
-            ) {
-
+            if (uris.isEmpty()) {
                 return@withContext DeleteResult.Success
             }
 
-
             when {
+
+                // -------------------------------------------------
+                // Android 11+
+                // -------------------------------------------------
 
                 Build.VERSION.SDK_INT >=
                         Build.VERSION_CODES.R -> {
@@ -693,14 +491,11 @@ class GalleryRepository {
                                 uris
                             )
 
-
                         DeleteResult.ConfirmDelete(
                             pendingIntent.intentSender
                         )
 
-                    } catch (
-                        e: Exception
-                    ) {
+                    } catch (e: Exception) {
 
                         DeleteResult.Error(
                             e.message
@@ -710,18 +505,19 @@ class GalleryRepository {
                 }
 
 
+                // -------------------------------------------------
+                // Android 10
+                // -------------------------------------------------
+
                 Build.VERSION.SDK_INT ==
                         Build.VERSION_CODES.Q -> {
 
                     val remaining =
                         uris.toMutableList()
 
-
                     try {
 
-                        for (
-                        uri in uris
-                        ) {
+                        for (uri in uris) {
 
                             context.contentResolver.delete(
                                 uri,
@@ -729,12 +525,8 @@ class GalleryRepository {
                                 null
                             )
 
-
-                            remaining.remove(
-                                uri
-                            )
+                            remaining.remove(uri)
                         }
-
 
                         DeleteResult.Success
 
@@ -743,17 +535,13 @@ class GalleryRepository {
                     ) {
 
                         DeleteResult.GrantPermissionThenRetry(
-
                             e.userAction
                                 .actionIntent
                                 .intentSender,
-
                             remaining
                         )
 
-                    } catch (
-                        e: Exception
-                    ) {
+                    } catch (e: Exception) {
 
                         DeleteResult.Error(
                             e.message
@@ -762,6 +550,10 @@ class GalleryRepository {
                     }
                 }
 
+
+                // -------------------------------------------------
+                // Android 9 and below
+                // -------------------------------------------------
 
                 else -> {
 
@@ -776,12 +568,9 @@ class GalleryRepository {
                             )
                         }
 
-
                         DeleteResult.Success
 
-                    } catch (
-                        e: Exception
-                    ) {
+                    } catch (e: Exception) {
 
                         DeleteResult.Error(
                             e.message
@@ -815,19 +604,13 @@ class GalleryRepository {
         images: List<ImageModel>
     ): Result<Int> {
 
-        return withContext(
-            Dispatchers.IO
-        ) {
+        return withContext(Dispatchers.IO) {
 
             try {
 
-                var movedCount =
-                    0
+                var movedCount = 0
 
-
-                for (
-                image in images
-                ) {
+                for (image in images) {
 
                     val result =
                         moveImageToTrash(
@@ -835,10 +618,7 @@ class GalleryRepository {
                             image
                         )
 
-
-                    if (
-                        result.isSuccess
-                    ) {
+                    if (result.isSuccess) {
 
                         movedCount++
 
@@ -853,18 +633,11 @@ class GalleryRepository {
                     }
                 }
 
+                Result.success(movedCount)
 
-                Result.success(
-                    movedCount
-                )
+            } catch (e: Exception) {
 
-            } catch (
-                e: Exception
-            ) {
-
-                Result.failure(
-                    e
-                )
+                Result.failure(e)
             }
         }
     }
@@ -880,9 +653,7 @@ class GalleryRepository {
         destinationAlbumName: String
     ): Result<Int> {
 
-        return withContext(
-            Dispatchers.IO
-        ) {
+        return withContext(Dispatchers.IO) {
 
             try {
 
@@ -897,33 +668,34 @@ class GalleryRepository {
                     )
                 }
 
+                if (uris.isEmpty()) {
 
-                var copiedCount =
-                    0
+                    return@withContext Result.success(
+                        0
+                    )
+                }
 
+                val resolver =
+                    context.contentResolver
 
-                for (
-                sourceUri in uris
-                ) {
+                var copiedCount = 0
 
-                    val resolver =
-                        context.contentResolver
+                for (sourceUri in uris) {
 
+                    // -------------------------------------------------
+                    // Get source information
+                    // -------------------------------------------------
 
                     val displayName =
                         queryDisplayName(
                             context,
                             sourceUri
-                        )
-                            ?: "IMG_${System.currentTimeMillis()}"
-
+                        ) ?: "MEDIA_${System.currentTimeMillis()}"
 
                     val mimeType =
                         resolver.getType(
                             sourceUri
-                        )
-                            ?: "application/octet-stream"
-
+                        ) ?: "application/octet-stream"
 
                     val isVideo =
                         mimeType.startsWith(
@@ -932,18 +704,40 @@ class GalleryRepository {
                         )
 
 
+                    // -------------------------------------------------
+                    // Choose MediaStore collection
+                    // -------------------------------------------------
+
                     val destinationCollection =
-                        if (
-                            isVideo
-                        ) {
-
+                        if (isVideo) {
                             videoCollection
-
                         } else {
-
                             imageCollection
                         }
 
+
+                    // -------------------------------------------------
+                    // Build destination path
+                    // -------------------------------------------------
+
+                    val relativePath =
+                        if (isVideo) {
+
+                            "${Environment.DIRECTORY_MOVIES}/" +
+                                    "MyGallery/" +
+                                    destinationAlbumName
+
+                        } else {
+
+                            "${Environment.DIRECTORY_PICTURES}/" +
+                                    "MyGallery/" +
+                                    destinationAlbumName
+                        }
+
+
+                    // -------------------------------------------------
+                    // ContentValues
+                    // -------------------------------------------------
 
                     val values =
                         ContentValues().apply {
@@ -952,7 +746,6 @@ class GalleryRepository {
                                 MediaStore.MediaColumns.DISPLAY_NAME,
                                 displayName
                             )
-
 
                             put(
                                 MediaStore.MediaColumns.MIME_TYPE,
@@ -965,38 +758,93 @@ class GalleryRepository {
                                 Build.VERSION_CODES.Q
                             ) {
 
-                                val relativePath =
-                                    if (isVideo) {
-
-                                        "${Environment.DIRECTORY_MOVIES}/" +
-                                                "MyGallery/" +
-                                                destinationAlbumName
-
-                                    } else {
-
-                                        "${Environment.DIRECTORY_PICTURES}/" +
-                                                "MyGallery/" +
-                                                destinationAlbumName
-                                    }
-
+                                put(
+                                    MediaStore.MediaColumns.RELATIVE_PATH,
+                                    relativePath
+                                )
 
                                 put(
                                     MediaStore.MediaColumns.IS_PENDING,
                                     1
                                 )
+
+                            } else {
+
+                                /*
+                                 * Android 9 and below.
+                                 *
+                                 * DATA is used because
+                                 * RELATIVE_PATH does not exist.
+                                 */
+
+                                val baseDirectory =
+                                    if (isVideo) {
+
+                                        Environment
+                                            .getExternalStoragePublicDirectory(
+                                                Environment.DIRECTORY_MOVIES
+                                            )
+
+                                    } else {
+
+                                        Environment
+                                            .getExternalStoragePublicDirectory(
+                                                Environment.DIRECTORY_PICTURES
+                                            )
+                                    }
+
+
+                                val galleryDirectory =
+                                    File(
+                                        baseDirectory,
+                                        "MyGallery/$destinationAlbumName"
+                                    )
+
+
+                                if (
+                                    !galleryDirectory.exists()
+                                ) {
+
+                                    galleryDirectory.mkdirs()
+                                }
+
+
+                                val destinationFile =
+                                    File(
+                                        galleryDirectory,
+                                        displayName
+                                    )
+
+
+                                put(
+                                    MediaStore.MediaColumns.DATA,
+                                    destinationFile.absolutePath
+                                )
                             }
                         }
 
+
+                    // -------------------------------------------------
+                    // Insert destination media
+                    // -------------------------------------------------
 
                     val newUri =
                         resolver.insert(
                             destinationCollection,
                             values
                         )
-                            ?: continue
+
+
+                    if (newUri == null) {
+                        continue
+                    }
 
 
                     try {
+
+                        // -------------------------------------------------
+                        // Copy bytes
+                        // -------------------------------------------------
 
                         val copied =
                             resolver
@@ -1014,13 +862,13 @@ class GalleryRepository {
                                             input.copyTo(
                                                 output
                                             )
+
+                                            true
                                         }
-                                } != null
+                                } ?: false
 
 
-                        if (
-                            !copied
-                        ) {
+                        if (!copied) {
 
                             resolver.delete(
                                 newUri,
@@ -1031,6 +879,11 @@ class GalleryRepository {
                             continue
                         }
 
+
+                        // -------------------------------------------------
+                        // Android 10+
+                        // Make media visible
+                        // -------------------------------------------------
 
                         if (
                             Build.VERSION.SDK_INT >=
@@ -1046,7 +899,6 @@ class GalleryRepository {
                                     )
                                 }
 
-
                             resolver.update(
                                 newUri,
                                 completeValues,
@@ -1058,9 +910,7 @@ class GalleryRepository {
 
                         copiedCount++
 
-                    } catch (
-                        e: Exception
-                    ) {
+                    } catch (e: Exception) {
 
                         try {
 
@@ -1070,9 +920,7 @@ class GalleryRepository {
                                 null
                             )
 
-                        } catch (
-                            _: Exception
-                        ) {
+                        } catch (_: Exception) {
                         }
                     }
                 }
@@ -1082,13 +930,9 @@ class GalleryRepository {
                     copiedCount
                 )
 
-            } catch (
-                e: Exception
-            ) {
+            } catch (e: Exception) {
 
-                Result.failure(
-                    e
-                )
+                Result.failure(e)
             }
         }
     }
@@ -1108,7 +952,6 @@ class GalleryRepository {
                 MediaStore.MediaColumns.DISPLAY_NAME
             )
 
-
         context.contentResolver.query(
             uri,
             projection,
@@ -1117,27 +960,19 @@ class GalleryRepository {
             null
         )?.use { cursor ->
 
-            if (
-                cursor.moveToFirst()
-            ) {
+            if (cursor.moveToFirst()) {
 
                 val index =
                     cursor.getColumnIndex(
                         MediaStore.MediaColumns.DISPLAY_NAME
                     )
 
+                if (index >= 0) {
 
-                if (
-                    index >= 0
-                ) {
-
-                    return cursor.getString(
-                        index
-                    )
+                    return cursor.getString(index)
                 }
             }
         }
-
 
         return null
     }
@@ -1152,9 +987,7 @@ class GalleryRepository {
         uris: List<Uri>
     ): Result<Int> {
 
-        return withContext(
-            Dispatchers.IO
-        ) {
+        return withContext(Dispatchers.IO) {
 
             if (
                 Build.VERSION.SDK_INT <
@@ -1168,16 +1001,11 @@ class GalleryRepository {
                 )
             }
 
-
             try {
 
-                var count =
-                    0
+                var count = 0
 
-
-                for (
-                uri in uris
-                ) {
+                for (uri in uris) {
 
                     val values =
                         ContentValues().apply {
@@ -1188,7 +1016,6 @@ class GalleryRepository {
                             )
                         }
 
-
                     val updated =
                         context.contentResolver.update(
                             uri,
@@ -1197,67 +1024,17 @@ class GalleryRepository {
                             null
                         )
 
-
-                    if (
-                        updated > 0
-                    ) {
-
+                    if (updated > 0) {
                         count++
                     }
                 }
 
+                Result.success(count)
 
-                Result.success(
-                    count
-                )
+            } catch (e: Exception) {
 
-            } catch (
-                e: Exception
-            ) {
-
-                Result.failure(
-                    e
-                )
+                Result.failure(e)
             }
-        }
-
-
-
-    }
-
-    private fun playVideo(
-        photo: ImageModel
-    ) {
-
-        try {
-
-            val intent =
-                Intent(
-                    Intent.ACTION_VIEW
-                ).apply {
-
-                    setDataAndType(
-                        photo.uri,
-                        photo.mimeType
-                    )
-
-                    addFlags(
-                        Intent.FLAG_GRANT_READ_URI_PERMISSION
-                    )
-                }
-
-
-            startActivity(intent)
-
-        } catch (
-            e: Exception
-        ) {
-
-            Toast.makeText(
-                requireContext(),
-                "No video player available",
-                Toast.LENGTH_SHORT
-            ).show()
         }
     }
 }

@@ -9,8 +9,9 @@ import androidx.lifecycle.lifecycleScope
 import com.example.mygallery.R
 import com.example.mygallery.databinding.BottomSheetMenuBinding
 import com.example.mygallery.repository.GalleryRepository
-import com.example.mygallery.ui.photo.FavoritesFragment
-import com.example.mygallery.ui.photo.TrashFragment
+import com.example.mygallery.ui.menu.FavoritesFragment
+import com.example.mygallery.ui.menu.ThemeBottomSheet
+import com.example.mygallery.ui.menu.TrashFragment
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import kotlinx.coroutines.launch
 
@@ -37,10 +38,6 @@ class MenuBottomSheet : BottomSheetDialogFragment() {
 
         binding.btnFavorites.setOnClickListener {
 
-            // Dismiss the sheet, then navigate the underlying Activity
-            // to FavoritesFragment — same frameContainer the bottom
-            // nav tabs use, with a back-stack entry so the system
-            // Back button returns to whichever tab was open before.
             dismiss()
 
             requireActivity().supportFragmentManager.beginTransaction()
@@ -59,7 +56,13 @@ class MenuBottomSheet : BottomSheetDialogFragment() {
         }
 
         binding.btnTheme.setOnClickListener {
-            Toast.makeText(requireContext(), "Theme — coming soon", Toast.LENGTH_SHORT).show()
+
+            dismiss()
+
+            ThemeBottomSheet().show(
+                requireActivity().supportFragmentManager,
+                "ThemeBottomSheet"
+            )
         }
 
         binding.btnPrivacy.setOnClickListener {
