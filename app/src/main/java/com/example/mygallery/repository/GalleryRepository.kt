@@ -653,6 +653,11 @@ class GalleryRepository {
         destinationAlbumName: String
     ): Result<Int> {
 
+        val safeAlbumName =
+            sanitizeAlbumName(
+                destinationAlbumName
+            )
+
         return withContext(Dispatchers.IO) {
 
             try {
@@ -725,13 +730,13 @@ class GalleryRepository {
 
                             "${Environment.DIRECTORY_MOVIES}/" +
                                     "MyGallery/" +
-                                    destinationAlbumName
+                                    safeAlbumName
 
                         } else {
 
                             "${Environment.DIRECTORY_PICTURES}/" +
                                     "MyGallery/" +
-                                    destinationAlbumName
+                                    safeAlbumName
                         }
 
 
@@ -797,7 +802,7 @@ class GalleryRepository {
                                 val galleryDirectory =
                                     File(
                                         baseDirectory,
-                                        "MyGallery/$destinationAlbumName"
+                                        "MyGallery/$safeAlbumName"
                                     )
 
 
@@ -1036,5 +1041,26 @@ class GalleryRepository {
                 Result.failure(e)
             }
         }
+    }
+
+
+    private fun sanitizeAlbumName(
+        albumName: String
+    ): String {
+
+        return albumName
+            .trim()
+            .replace(
+                Regex("[\\\\/:*?\"<>|]"),
+                "_"
+            )
+            .replace(
+                Regex("/+"),
+                ""
+            )
+            .trim('/')
+            .ifBlank {
+                "MyGallery"
+            }
     }
 }

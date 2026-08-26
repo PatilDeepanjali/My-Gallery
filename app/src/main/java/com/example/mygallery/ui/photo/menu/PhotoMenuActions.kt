@@ -183,9 +183,7 @@ object PhotoMenuActions {
         }
     }
 
-    @androidx.annotation.RequiresApi(
-        android.os.Build.VERSION_CODES.Q
-    )
+    @RequiresApi(Build.VERSION_CODES.Q)
     private fun renameApi29Plus(
         context: Context,
         photo: ImageModel,
@@ -208,13 +206,28 @@ object PhotoMenuActions {
 
             } else {
 
-                RenameResult.Error(
-                    "Rename failed"
-                )
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+
+                    val request =
+                        MediaStore.createWriteRequest(
+                            context.contentResolver,
+                            listOf(photo.uri)
+                        )
+
+                    RenameResult.NeedsPermission(
+                        request.intentSender
+                    )
+
+                } else {
+
+                    RenameResult.Error(
+                        "Rename failed"
+                    )
+                }
             }
 
         } catch (
-            e: android.app.RecoverableSecurityException
+            e: RecoverableSecurityException
         ) {
 
             RenameResult.NeedsPermission(
@@ -223,11 +236,41 @@ object PhotoMenuActions {
                     .intentSender
             )
 
-        } catch (e: SecurityException) {
+        } catch (
+            e: SecurityException
+        ) {
 
-            RenameResult.Error(
-                "No permission to rename this photo"
-            )
+            if (
+                Build.VERSION.SDK_INT >=
+                Build.VERSION_CODES.R
+            ) {
+
+                try {
+
+                    val request =
+                        MediaStore.createWriteRequest(
+                            context.contentResolver,
+                            listOf(photo.uri)
+                        )
+
+                    RenameResult.NeedsPermission(
+                        request.intentSender
+                    )
+
+                } catch (requestException: Exception) {
+
+                    RenameResult.Error(
+                        requestException.message
+                            ?: "No permission to rename this media"
+                    )
+                }
+
+            } else {
+
+                RenameResult.Error(
+                    "No permission to rename this media"
+                )
+            }
 
         } catch (e: Exception) {
 
@@ -236,7 +279,6 @@ object PhotoMenuActions {
             )
         }
     }
-
 
     private fun renameBelowApi29(
         context: Context,

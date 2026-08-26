@@ -43,6 +43,8 @@ import com.example.mygallery.viewmodel.PhotosViewModel
 import com.example.mygallery.viewmodel.PhotosViewModelFactory
 import kotlinx.coroutines.launch
 
+import com.example.mygallery.ui.photo.menu.PhotoMenuActions
+
 
 class PhotoPreviewFragment : Fragment() {
 
@@ -66,6 +68,46 @@ class PhotoPreviewFragment : Fragment() {
     private var pendingDeleteRetryUris: List<android.net.Uri>? = null
 
     private var pendingDeleteSuccessMessage = "Deleted"
+
+    private var pendingRenamePhoto: ImageModel? = null
+    private var pendingRenameName: String? = null
+
+    private val renamePermissionLauncher =
+        registerForActivityResult(
+            ActivityResultContracts.StartIntentSenderForResult()
+        ) { result ->
+
+            if (result.resultCode == Activity.RESULT_OK) {
+
+                val photo =
+                    pendingRenamePhoto
+
+                val newName =
+                    pendingRenameName
+
+                if (
+                    photo != null &&
+                    newName != null
+                ) {
+
+                    performRename(
+                        photo,
+                        newName
+                    )
+                }
+
+            } else {
+
+                Toast.makeText(
+                    requireContext(),
+                    "Rename permission denied",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+
+            pendingRenamePhoto = null
+            pendingRenameName = null
+        }
 
 
     // =========================================================
@@ -741,66 +783,16 @@ class PhotoPreviewFragment : Fragment() {
         newName: String
     ) {
 
-        try {
-
-            val extension =
-                photo.name.substringAfterLast(
-                    ".",
-                    ""
-                )
-
-
-            val finalName =
-                if (
-                    extension.isNotEmpty() &&
-                    !newName.contains(".")
-                ) {
-
-                    "$newName.$extension"
-
-                } else {
-
+        when (
+            val result =
+                PhotoMenuActions.rename(
+                    requireContext(),
+                    photo,
                     newName
-                }
+                )
+        ) {
 
-
-            val values =
-                ContentValues().apply {
-
-                    put(
-                        MediaStore.MediaColumns.DISPLAY_NAME,
-                        finalName
-                    )
-                }
-
-
-            val updated =
-                requireContext()
-                    .contentResolver
-                    .update(
-                        photo.uri,
-                        values,
-                        null,
-                        null
-                    )
-
-
-            if (updated > 0) {
-
-                val index =
-                    imageList.indexOfFirst {
-                        it.id == photo.id
-                    }
-
-
-                if (index != -1) {
-
-                    imageList[index] =
-                        imageList[index].copy(
-                            name = finalName
-                        )
-                }
-
+            is PhotoMenuActions.RenameResult.Success -> {
 
                 Toast.makeText(
                     requireContext(),
@@ -808,26 +800,126 @@ class PhotoPreviewFragment : Fragment() {
                     Toast.LENGTH_SHORT
                 ).show()
 
-            } else {
+                refreshCurrentPhotoName(
+                    photo,
+                    newName
+                )
+            }
+
+            is PhotoMenuActions.RenameResult.Error -> {
 
                 Toast.makeText(
                     requireContext(),
-                    "Rename failed",
-                    Toast.LENGTH_SHORT
+                    result.message,
+                    Toast.LENGTH_LONG
                 ).show()
             }
 
-        } catch (e: Exception) {
+            is PhotoMenuActions.RenameResult.NeedsPermission -> {
 
-            Toast.makeText(
-                requireContext(),
-                "Rename failed: ${e.message}",
-                Toast.LENGTH_SHORT
-            ).show()
+                pendingRenamePhoto =
+                    photo
+
+                pendingRenameName =
+                    newName
+
+                renamePermissionLauncher.launch(
+                    IntentSenderRequest.Builder(
+                        result.intentSender
+                    ).build()
+                )
+            }
+        }
+    }
+
+    private fun performRename(
+        photo: ImageModel,
+        newName: String
+    ) {
+
+        when (
+            val result =
+                PhotoMenuActions.rename(
+                    requireContext(),
+                    photo,
+                    newName
+                )
+        ) {
+
+            is PhotoMenuActions.RenameResult.Success -> {
+
+                Toast.makeText(
+                    requireContext(),
+                    "Renamed successfully",
+                    Toast.LENGTH_SHORT
+                ).show()
+
+                refreshCurrentPhotoName(
+                    photo,
+                    newName
+                )
+            }
+
+            is PhotoMenuActions.RenameResult.Error -> {
+
+                Toast.makeText(
+                    requireContext(),
+                    result.message,
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+
+            is PhotoMenuActions.RenameResult.NeedsPermission -> {
+
+                renamePermissionLauncher.launch(
+                    IntentSenderRequest.Builder(
+                        result.intentSender
+                    ).build()
+                )
+            }
         }
     }
 
 
+
+    private fun refreshCurrentPhotoName(
+        photo: ImageModel,
+        newName: String
+    ) {
+
+        val extension =
+            photo.name.substringAfterLast(
+                ".",
+                ""
+            )
+
+        val finalName =
+            if (
+                extension.isNotEmpty() &&
+                !newName.contains(".")
+            ) {
+                "$newName.$extension"
+            } else {
+                newName
+            }
+
+        val index =
+            imageList.indexOfFirst {
+                it.id == photo.id
+            }
+
+        if (index >= 0) {
+
+            imageList[index] =
+                imageList[index].copy(
+                    name = finalName
+                )
+        }
+
+        updatePhotoInfo(
+            clickedPosition
+        )
+    }
     // =========================================================
     // OPEN WITH
     // =========================================================
